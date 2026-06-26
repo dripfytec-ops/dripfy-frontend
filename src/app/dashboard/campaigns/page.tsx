@@ -15,6 +15,7 @@ const schema = z.object({
   canal_id: z.string().min(1, 'Selecione um canal'),
   delay_segundos: z.number().int().min(10),
   usa_nome: z.boolean().default(false),
+  image_url: z.string().url('URL inválida').optional().or(z.literal('')),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -55,9 +56,10 @@ export default function CampaignsPage() {
   });
 
   const create = useMutation({
-    mutationFn: ({ usa_nome, ...rest }: FormData) => api.post('/campaigns', {
+    mutationFn: ({ usa_nome, image_url, ...rest }: FormData) => api.post('/campaigns', {
       ...rest,
       template_params: { usa_nome },
+      ...(image_url ? { image_url } : {}),
     }),
     onSuccess: () => { toast.success('Campanha criada!'); queryClient.invalidateQueries({ queryKey: ['campaigns'] }); setModalOpen(false); reset(); },
     onError: (e: any) => toast.error(e.response?.data?.message || 'Erro ao criar campanha.'),
@@ -202,6 +204,14 @@ export default function CampaignsPage() {
                 <label htmlFor="usa_nome" className="text-sm text-gray-700 cursor-pointer">
                   Template usa nome do lead <span className="font-mono text-xs text-gray-500">{'{{1}}'}</span>
                 </label>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  URL da imagem <span className="text-gray-400 font-normal">(opcional — apenas para templates com imagem no header)</span>
+                </label>
+                <input {...register('image_url')} className="input" placeholder="https://seusite.com/imagem.jpg" />
+                {errors.image_url && <p className="text-red-500 text-xs mt-0.5">{errors.image_url.message}</p>}
+                <p className="text-gray-400 text-xs mt-0.5">Use uma URL permanente e pública. Deixe vazio para templates sem imagem.</p>
               </div>
 
               <div>
