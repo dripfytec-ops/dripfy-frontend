@@ -57,7 +57,10 @@ export default function SettingsPage() {
       queryClient.invalidateQueries({ queryKey: ['canais'] });
       setCanalModal({ open: false, editing: null });
     },
-    onError: () => toast.error('Erro ao criar canal.'),
+    onError: (e: any) => {
+      const msg = e.response?.data?.message;
+      toast.error(Array.isArray(msg) ? msg.join(', ') : msg || 'Erro ao criar canal.');
+    },
   });
 
   const updateCanal = useMutation({
@@ -71,7 +74,10 @@ export default function SettingsPage() {
       queryClient.invalidateQueries({ queryKey: ['canais'] });
       setCanalModal({ open: false, editing: null });
     },
-    onError: () => toast.error('Erro ao atualizar canal.'),
+    onError: (e: any) => {
+      const msg = e.response?.data?.message;
+      toast.error(Array.isArray(msg) ? msg.join(', ') : msg || 'Erro ao atualizar canal.');
+    },
   });
 
   const deleteCanal = useMutation({
