@@ -4,7 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { LayoutList, Kanban, Upload, Search, Users, Send, MessageSquare, CheckCircle2 } from 'lucide-react';
 import api from '@/lib/api';
-import { Lead, LeadStatus, PaginatedResponse, KanbanBoard } from '@/types';
+import { auth } from '@/lib/auth';
+import { Lead, Etiqueta, Vendedor, PaginatedResponse, KanbanBoard } from '@/types';
 import LeadTable from '@/components/leads/LeadTable';
 import LeadKanban from '@/components/leads/LeadKanban';
 import UploadModal from '@/components/leads/UploadModal';
@@ -12,59 +13,71 @@ import LeadConversation from '@/components/leads/LeadConversation';
 
 type ViewMode = 'list' | 'kanban';
 
-const STATUS_LABELS: Record<LeadStatus, string> = {
-  balde_geral: 'Balde Geral',
-  aguardando_resposta: 'Aguardando Resposta',
-  em_atendimento: 'Em Atendimento',
-  finalizado: 'Finalizado',
-};
-
 export default function LeadsPage() {
   const [view, setView] = useState<ViewMode>('list');
   const [search, setSearch] = useState('');
-  const [status, setStatus] = useState<LeadStatus | ''>('');
+  const [filterEtiqueta, setFilterEtiqueta] = useState('');
   const [page, setPage] = useState(1);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const queryClient = useQueryClient();
+  const user = auth.getUser();
 
-  const { data: stats } = useQuery<{
-    total: number; disparados: number; aguardando: number; emAtendimento: number; mensagens: number;
-  }>({
+  const isAdmin = user?.role === 'lojista_admin' || user?.role === 'admin_master';
+
+  const { data: stats } = useQuery<{ total: number; disparados: number; emAtendimento: number; mensagens: number }>({
     queryKey: ['leads-stats'],
     queryFn: async () => (await api.get('/leads/stats')).data,
     refetchInterval: 30000,
   });
 
+  const { data: etiquetas = [] } = useQuery<Etiqueta[]>({
+    queryKey: ['etiquetas'],
+    queryFn: async () => (await api.get('/etiquetas')).data,
+  });
+
+  const { data: vendedores = [] } = useQuery<Vendedor[]>({
+    queryKey: ['vendedores'],
+    queryFn: async () => { try { return (await api.get('/leads/vendedores')).data; } catch { return []; } },
+    enabled: isAdmin,
+  });
+
   const { data: listData, isLoading: listLoading } = useQuery<PaginatedResponse<Lead>>({
-    queryKey: ['leads', 'list', { search, status, page }],
+    queryKey: ['leads', 'list', { search, filterEtiqueta, page }],
     queryFn: async () => {
       const params: any = { page, limit: 20 };
       if (search) params.search = search;
-      if (status) params.status = status;
+      if (filterEtiqueta) params.etiqueta_id = filterEtiqueta;
       return (await api.get('/leads', { params })).data;
     },
     enabled: view === 'list',
+    refetchInterval: 10000,
   });
 
   const { data: kanbanData, isLoading: kanbanLoading } = useQuery<KanbanBoard>({
     queryKey: ['leads', 'kanban'],
     queryFn: async () => (await api.get('/leads/kanban')).data,
     enabled: view === 'kanban',
+    refetchInterval: 10000,
   });
 
-  const updateStatus = useMutation({
-    mutationFn: ({ id, status }: { id: number; status: LeadStatus }) =>
-      api.patch(`/leads/${id}/status`, { status_atual: status }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['leads'] });
-    },
-    onError: () => toast.error('Erro ao atualizar status.'),
+  const updateEtiqueta = useMutation({
+    mutationFn: ({ id, etiqueta_id }: { id: number; etiqueta_id: string }) =>
+      api.patch(`/leads/${id}/etiqueta`, { etiqueta_id }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['leads'] }),
+    onError: () => toast.error('Erro ao atualizar etiqueta.'),
   });
 
-  const handleDrop = useCallback((leadId: number, newStatus: LeadStatus) => {
-    updateStatus.mutate({ id: leadId, status: newStatus });
-  }, [updateStatus]);
+  const assignVendedor = useMutation({
+    mutationFn: ({ id, vendedor_id }: { id: number; vendedor_id: string | null }) =>
+      api.patch(`/leads/${id}/vendedor`, { vendedor_id }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['leads'] }),
+    onError: () => toast.error('Erro ao atribuir vendedor.'),
+  });
+
+  const handleDrop = useCallback((leadId: number, etiquetaId: string) => {
+    updateEtiqueta.mutate({ id: leadId, etiqueta_id: etiquetaId });
+  }, [updateEtiqueta]);
 
   return (
     <div className="p-6">
@@ -74,18 +87,17 @@ export default function LeadsPage() {
           <p className="text-gray-500 text-sm mt-0.5">Gerencie seus contatos e acompanhe o pipeline</p>
         </div>
         <button onClick={() => setUploadOpen(true)} className="btn-primary flex items-center gap-2">
-          <Upload size={16} />
-          Importar Planilha
+          <Upload size={16} /> Importar Planilha
         </button>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4 mb-6">
         {[
-          { label: 'Total de Leads', value: stats?.total ?? '—', icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
-          { label: 'Disparados', value: stats?.disparados ?? '—', icon: Send, color: 'text-green-600', bg: 'bg-green-50' },
-          { label: 'Em Atendimento', value: stats?.emAtendimento ?? '—', icon: MessageSquare, color: 'text-yellow-600', bg: 'bg-yellow-50' },
-          { label: 'Mensagens Enviadas', value: stats?.mensagens ?? '—', icon: CheckCircle2, color: 'text-purple-600', bg: 'bg-purple-50' },
+          { label: 'Total de Leads',      value: stats?.total ?? '—',          icon: Users,          color: 'text-blue-600',   bg: 'bg-blue-50' },
+          { label: 'Disparados',           value: stats?.disparados ?? '—',     icon: Send,           color: 'text-green-600',  bg: 'bg-green-50' },
+          { label: 'Em Atendimento',       value: stats?.emAtendimento ?? '—',  icon: MessageSquare,  color: 'text-yellow-600', bg: 'bg-yellow-50' },
+          { label: 'Mensagens Enviadas',   value: stats?.mensagens ?? '—',      icon: CheckCircle2,   color: 'text-purple-600', bg: 'bg-purple-50' },
         ].map((s) => (
           <div key={s.label} className="card p-4 flex items-center gap-3">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${s.bg} flex-shrink-0`}>
@@ -100,21 +112,17 @@ export default function LeadsPage() {
       </div>
 
       {/* Controls */}
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
         <div className="flex bg-white border border-gray-200 rounded-lg p-1">
           <button
             onClick={() => setView('list')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              view === 'list' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-50'
-            }`}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${view === 'list' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-50'}`}
           >
             <LayoutList size={15} /> Lista
           </button>
           <button
             onClick={() => setView('kanban')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              view === 'kanban' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-50'
-            }`}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${view === 'kanban' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-50'}`}
           >
             <Kanban size={15} /> Kanban
           </button>
@@ -132,13 +140,13 @@ export default function LeadsPage() {
               />
             </div>
             <select
-              value={status}
-              onChange={(e) => { setStatus(e.target.value as LeadStatus | ''); setPage(1); }}
+              value={filterEtiqueta}
+              onChange={(e) => { setFilterEtiqueta(e.target.value); setPage(1); }}
               className="input w-48"
             >
               <option value="">Todos os status</option>
-              {Object.entries(STATUS_LABELS).map(([v, l]) => (
-                <option key={v} value={v}>{l}</option>
+              {etiquetas.map((e) => (
+                <option key={e.id} value={e.id}>{e.nome}</option>
               ))}
             </select>
           </>
@@ -151,32 +159,32 @@ export default function LeadsPage() {
           loading={listLoading}
           page={page}
           onPageChange={setPage}
-          statusLabels={STATUS_LABELS}
+          etiquetas={etiquetas}
+          onChangeEtiqueta={(leadId, etiquetaId) => updateEtiqueta.mutate({ id: leadId, etiqueta_id: etiquetaId })}
+          onAssignVendedor={(leadId, vendedorId) => assignVendedor.mutate({ id: leadId, vendedor_id: vendedorId })}
           onSelectLead={setSelectedLead}
+          vendedores={vendedores}
+          isAdmin={isAdmin}
         />
       ) : (
         <LeadKanban
           data={kanbanData}
           loading={kanbanLoading}
           onDrop={handleDrop}
-          statusLabels={STATUS_LABELS}
+          vendedores={vendedores}
+          isAdmin={isAdmin}
+          onSelectLead={setSelectedLead}
         />
       )}
 
       <UploadModal
         open={uploadOpen}
         onClose={() => setUploadOpen(false)}
-        onSuccess={() => {
-          queryClient.invalidateQueries({ queryKey: ['leads'] });
-          setUploadOpen(false);
-        }}
+        onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['leads'] }); setUploadOpen(false); }}
       />
 
       {selectedLead && (
-        <LeadConversation
-          lead={selectedLead}
-          onClose={() => setSelectedLead(null)}
-        />
+        <LeadConversation lead={selectedLead} onClose={() => setSelectedLead(null)} />
       )}
     </div>
   );

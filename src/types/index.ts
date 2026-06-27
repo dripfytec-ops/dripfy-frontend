@@ -3,6 +3,16 @@ export type LeadStatus = 'balde_geral' | 'aguardando_resposta' | 'em_atendimento
 export type CampaignStatus = 'pausado' | 'rodando' | 'concluido';
 export type SubscriptionStatus = 'ativo' | 'inativo' | 'trial';
 export type MessageStatus = 'enviado' | 'entregue' | 'lido' | 'erro';
+export type MessageDirection = 'entrada' | 'saida';
+
+export interface Etiqueta {
+  id: string;
+  tenant_id: string;
+  nome: string;
+  cor_hexadecimal: string;
+  ordem: number;
+  slug?: string;
+}
 
 export interface Canal {
   id: string;
@@ -20,10 +30,17 @@ export interface Message {
   lead_id: number;
   campanha_id?: string;
   wamid?: string;
-  template_name: string;
+  template_name?: string;
+  direction: MessageDirection;
+  content?: string;
   status: MessageStatus;
   erro_msg?: string;
   criado_em: string;
+}
+
+export interface Vendedor {
+  id: string;
+  nome: string;
 }
 
 export interface User {
@@ -48,6 +65,10 @@ export interface Lead {
   nome: string;
   telefone: string;
   status_atual: LeadStatus;
+  etiqueta_id?: string;
+  etiqueta?: Etiqueta;
+  vendedor_id?: string;
+  vendedor?: Vendedor;
   disparado: boolean;
   campanha_id?: string;
   criado_em: string;
@@ -84,8 +105,6 @@ export interface PaginatedResponse<T> {
 }
 
 export interface KanbanBoard {
-  balde_geral: Lead[];
-  aguardando_resposta: Lead[];
-  em_atendimento: Lead[];
-  finalizado: Lead[];
+  etiquetas: Etiqueta[];
+  colunas: Record<string, Lead[]>;
 }
