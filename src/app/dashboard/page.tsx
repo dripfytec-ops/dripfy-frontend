@@ -64,8 +64,33 @@ export default function LeadsPage() {
   const updateEtiqueta = useMutation({
     mutationFn: ({ id, etiqueta_id }: { id: number; etiqueta_id: string }) =>
       api.patch(`/leads/${id}/etiqueta`, { etiqueta_id }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['leads'] }),
-    onError: () => toast.error('Erro ao atualizar etiqueta.'),
+    onMutate: async ({ id: leadId, etiqueta_id: etiquetaId }) => {
+      await queryClient.cancelQueries({ queryKey: ['leads', 'kanban'] });
+      const previous = queryClient.getQueryData<KanbanBoard>(['leads', 'kanban']);
+      if (previous) {
+        const newColunas: Record<string, Lead[]> = {};
+        let movedLead: Lead | undefined;
+        for (const [etId, leads] of Object.entries(previous.colunas)) {
+          const idx = leads.findIndex((l) => l.id_number === leadId);
+          if (idx !== -1) {
+            movedLead = leads[idx];
+            newColunas[etId] = leads.filter((l) => l.id_number !== leadId);
+          } else {
+            newColunas[etId] = leads;
+          }
+        }
+        if (movedLead) {
+          newColunas[etiquetaId] = [...(newColunas[etiquetaId] || []), { ...movedLead, etiqueta_id: etiquetaId }];
+        }
+        queryClient.setQueryData<KanbanBoard>(['leads', 'kanban'], { ...previous, colunas: newColunas });
+      }
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) queryClient.setQueryData(['leads', 'kanban'], context.previous);
+      toast.error('Erro ao mover lead.');
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['leads'] }),
   });
 
   const assignVendedor = useMutation({
