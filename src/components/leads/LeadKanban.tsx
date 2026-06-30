@@ -7,7 +7,7 @@ import {
 import { useDroppable, useDraggable } from '@dnd-kit/core';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { GripVertical, CheckCircle2, Circle, Settings2, Check, X, UserCircle2, Plus } from 'lucide-react';
+import { GripVertical, CheckCircle2, Circle, Settings2, Check, X, UserCircle2, Plus, PhoneIncoming } from 'lucide-react';
 import { Lead, Etiqueta, KanbanBoard, Vendedor } from '@/types';
 import api from '@/lib/api';
 
@@ -44,6 +44,11 @@ function LeadCard({ lead, onSelectLead }: { lead: Lead; onSelectLead: (l: Lead) 
             <div className="flex items-center gap-1.5">
               {lead.disparado ? <CheckCircle2 size={11} className="text-green-500" /> : <Circle size={11} className="text-gray-300" />}
               <span className="text-xs text-gray-400">#{lead.id_number}</span>
+              {lead.iniciado_pelo_cliente && (
+                <span className="flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-500">
+                  <PhoneIncoming size={9} /> Iniciou
+                </span>
+              )}
             </div>
             <span className="flex items-center gap-1 text-xs text-gray-400">
               <UserCircle2 size={11} />

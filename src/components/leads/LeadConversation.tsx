@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { X, Send, CheckCheck, Check, Eye, AlertCircle, MessageSquare, SendHorizonal, Clock } from 'lucide-react';
+import { X, Send, CheckCheck, Check, Eye, AlertCircle, MessageSquare, SendHorizonal, Clock, Trash2, PhoneIncoming } from 'lucide-react';
 import api from '@/lib/api';
 import { Lead, Message, MessageStatus } from '@/types';
 
@@ -78,6 +78,20 @@ export default function LeadConversation({ lead, onClose }: Props) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  const deleteMutation = useMutation({
+    mutationFn: async () => (await api.delete(`/messages/lead/${lead.id_number}`)).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['messages', 'lead', lead.id_number] });
+      toast.success('Histórico apagado.');
+    },
+    onError: () => toast.error('Erro ao apagar histórico.'),
+  });
+
+  const handleDelete = () => {
+    if (!confirm('Apagar todo o histórico de mensagens deste lead?')) return;
+    deleteMutation.mutate();
+  };
+
   const sendMutation = useMutation({
     mutationFn: async (msg: string) => (await api.post(`/messages/reply/${lead.id_number}`, { texto: msg })).data,
     onSuccess: () => {
@@ -122,9 +136,22 @@ export default function LeadConversation({ lead, onClose }: Props) {
             <p className="text-xs text-slate-400 font-mono">{lead.telefone}</p>
           </div>
           <div className="flex items-center gap-2">
+            {lead.iniciado_pelo_cliente && (
+              <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium bg-amber-500/20 text-amber-300">
+                <PhoneIncoming size={11} /> Cliente iniciou
+              </span>
+            )}
             <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: etiquetaCor + '30', color: etiquetaCor }}>
               {etiquetaNome}
             </span>
+            <button
+              onClick={handleDelete}
+              disabled={deleteMutation.isPending}
+              title="Apagar histórico"
+              className="p-1.5 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded-lg transition-colors"
+            >
+              <Trash2 size={16} />
+            </button>
             <button onClick={onClose} className="p-1.5 hover:bg-white/10 rounded-lg transition-colors">
               <X size={18} />
             </button>

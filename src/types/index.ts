@@ -70,6 +70,7 @@ export interface Lead {
   vendedor_id?: string;
   vendedor?: Vendedor;
   disparado: boolean;
+  iniciado_pelo_cliente: boolean;
   campanha_id?: string;
   criado_em: string;
 }

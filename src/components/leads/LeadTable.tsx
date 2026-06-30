@@ -1,7 +1,7 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
 import { Lead, PaginatedResponse, Etiqueta, Vendedor } from '@/types';
-import { ChevronLeft, ChevronRight, CheckCircle2, Circle, MessageSquare, ChevronDown, UserCircle2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle2, Circle, MessageSquare, ChevronDown, UserCircle2, PhoneIncoming } from 'lucide-react';
 
 interface Props {
   data?: PaginatedResponse<Lead>;
@@ -121,7 +121,16 @@ export default function LeadTable({ data, loading, page, onPageChange, etiquetas
           {data?.data?.map((lead) => (
             <tr key={lead.id_number} className="hover:bg-gray-50 transition-colors">
               <td className="px-4 py-3 text-gray-400 font-mono text-xs">{lead.id_number}</td>
-              <td className="px-4 py-3 font-medium text-gray-900">{lead.nome}</td>
+              <td className="px-4 py-3 font-medium text-gray-900">
+                <span className="flex items-center gap-1.5">
+                  {lead.nome}
+                  {lead.iniciado_pelo_cliente && (
+                    <span title="Cliente iniciou a conversa" className="flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-500 whitespace-nowrap">
+                      <PhoneIncoming size={9} /> Iniciou
+                    </span>
+                  )}
+                </span>
+              </td>
               <td className="px-4 py-3 text-gray-600 font-mono">{lead.telefone}</td>
               <td className="px-4 py-3 text-gray-500">{lead.cpf || '—'}</td>
               <td className="px-4 py-3">
