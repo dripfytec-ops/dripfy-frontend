@@ -9,16 +9,20 @@ import {
   MessageSquare, Webhook,
 } from 'lucide-react';
 
-const navItems = [
-  { href: '/dashboard', icon: LayoutDashboard, label: 'Leads' },
-  { href: '/dashboard/campaigns', icon: Megaphone, label: 'Campanhas' },
-  { href: '/dashboard/settings', icon: Settings, label: 'Canais' },
+const NAV_BASE = [
+  { href: '/dashboard', icon: LayoutDashboard, label: 'Leads', adminOnly: false },
+  { href: '/dashboard/campaigns', icon: Megaphone, label: 'Campanhas', adminOnly: false },
+  { href: '/dashboard/vendedores', icon: Users, label: 'Equipe', adminOnly: true },
+  { href: '/dashboard/settings', icon: Settings, label: 'Canais', adminOnly: true },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
+
+  const isAdmin = user?.role === 'lojista_admin' || user?.role === 'admin_master';
+  const navItems = NAV_BASE.filter((item) => !item.adminOnly || isAdmin);
 
   useEffect(() => {
     if (!auth.isAuthenticated()) {

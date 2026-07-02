@@ -43,6 +43,15 @@ export interface Vendedor {
   nome: string;
 }
 
+export interface TeamMember {
+  id: string;
+  nome: string;
+  email: string;
+  role: UserRole;
+  ativo: boolean;
+  criado_em: string;
+}
+
 export interface User {
   id: string;
   nome: string;
