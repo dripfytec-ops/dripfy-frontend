@@ -11,9 +11,9 @@ const config: Config = {
     extend: {
       colors: {
         primary: {
-          DEFAULT: '#1D4ED8',
-          dark: '#1E40AF',
-          light: '#DBEAFE',
+          DEFAULT: '#2563EB',
+          dark: '#1D4ED8',
+          light: '#EFF6FF',
         },
         brand: {
           DEFAULT: '#0F172A',
@@ -22,6 +22,19 @@ const config: Config = {
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
+      },
+      fontWeight: {
+        light: '300',
+        normal: '400',
+        medium: '500',
+        semibold: '600',
+      },
+      borderRadius: {
+        xl: '14px',
+        '2xl': '18px',
+      },
+      boxShadow: {
+        sm: '0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.04)',
       },
     },
   },

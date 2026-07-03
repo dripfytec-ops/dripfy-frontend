@@ -42,49 +42,49 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen flex bg-gray-50">
       {/* Sidebar */}
-      <aside className="w-64 bg-slate-900 flex flex-col">
-        <div className="p-6 border-b border-white/10">
+      <aside className="w-52 bg-slate-950 flex flex-col border-r border-white/5">
+        <div className="px-5 py-5 border-b border-white/5">
           <div className="flex items-center gap-2">
-            <span className="text-2xl">💧</span>
+            <span className="text-xl">💧</span>
             <div>
-              <p className="text-white font-bold text-lg leading-tight">Dripfy</p>
-              <p className="text-white/60 text-xs truncate">{user.tenant.nome_empresa}</p>
+              <p className="text-white text-sm tracking-tight" style={{ fontWeight: 500 }}>Dripfy</p>
+              <p className="text-white/40 text-[11px] truncate">{user.tenant.nome_empresa}</p>
             </div>
           </div>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 px-3 py-4 space-y-0.5">
           {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-colors ${
                 pathname === item.href
-                  ? 'bg-primary text-white'
-                  : 'text-slate-400 hover:bg-white/10 hover:text-white'
+                  ? 'bg-white/10 text-white'
+                  : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
               }`}
             >
-              <item.icon size={18} />
+              <item.icon size={15} strokeWidth={1.5} />
               {item.label}
             </Link>
           ))}
         </nav>
 
-        <div className="p-4 border-t border-white/10">
-          <div className="flex items-center gap-3 px-3 py-2 mb-2">
-            <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-white text-sm font-bold">
+        <div className="px-3 pb-4 border-t border-white/5 pt-3">
+          <div className="flex items-center gap-2.5 px-3 py-2 mb-1">
+            <div className="w-7 h-7 bg-white/10 rounded-full flex items-center justify-center text-white text-xs">
               {user.nome.charAt(0)}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-white text-sm font-medium truncate">{user.nome}</p>
-              <p className="text-white/50 text-xs truncate">{user.email}</p>
+              <p className="text-white/80 text-[12px] truncate">{user.nome}</p>
+              <p className="text-white/30 text-[10px] truncate">{user.email}</p>
             </div>
           </div>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-2 text-white/70 hover:text-white text-sm px-3 py-2 w-full rounded-lg hover:bg-white/10 transition-colors"
+            className="flex items-center gap-2 text-white/30 hover:text-white/70 text-[12px] px-3 py-1.5 w-full rounded-lg hover:bg-white/5 transition-colors"
           >
-            <LogOut size={16} />
+            <LogOut size={13} strokeWidth={1.5} />
             Sair
           </button>
         </div>
