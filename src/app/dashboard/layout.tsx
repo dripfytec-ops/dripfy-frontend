@@ -8,6 +8,7 @@ import {
   LayoutDashboard, Users, Megaphone, Settings, LogOut,
   MessageSquare, Webhook,
 } from 'lucide-react';
+import Logo from '@/components/ui/Logo';
 
 const NAV_BASE = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Leads', adminOnly: false },
@@ -45,7 +46,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <aside className="w-52 bg-slate-950 flex flex-col border-r border-white/5">
         <div className="px-5 py-5 border-b border-white/5">
           <div className="flex items-center gap-2">
-            <span className="text-xl">💧</span>
+            <Logo variant="mark" size={22} />
             <div>
               <p className="text-white text-sm tracking-tight" style={{ fontWeight: 500 }}>Dripfy</p>
               <p className="text-white/40 text-[11px] truncate">{user.tenant.nome_empresa}</p>

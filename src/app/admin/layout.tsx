@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import { User } from '@/types';
 import { Building2, Users, LogOut, LayoutDashboard } from 'lucide-react';
+import Logo from '@/components/ui/Logo';
 
 const navItems = [
   { href: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
@@ -32,7 +33,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <aside className="w-64 bg-slate-900 flex flex-col">
         <div className="p-6 border-b border-white/10">
           <div className="flex items-center gap-2">
-            <span className="text-2xl">💧</span>
+            <Logo variant="mark" size={26} />
             <div>
               <p className="text-white font-bold">Dripfy Master</p>
               <p className="text-white/50 text-xs">Painel Administrativo</p>

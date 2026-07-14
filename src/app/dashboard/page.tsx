@@ -1,17 +1,17 @@
 'use client';
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { LayoutList, Kanban, Upload, Search, Users, Send, MessageSquare, CheckCircle2 } from 'lucide-react';
+import { LayoutList, MessageCircle, Upload, Search, Users, Send, MessageSquare, CheckCircle2 } from 'lucide-react';
 import api from '@/lib/api';
 import { auth } from '@/lib/auth';
-import { Lead, Etiqueta, Vendedor, PaginatedResponse, KanbanBoard } from '@/types';
+import { Lead, Etiqueta, Vendedor, PaginatedResponse } from '@/types';
 import LeadTable from '@/components/leads/LeadTable';
-import LeadKanban from '@/components/leads/LeadKanban';
+import ChatScreen from '@/components/chat/ChatScreen';
 import UploadModal from '@/components/leads/UploadModal';
 import LeadConversation from '@/components/leads/LeadConversation';
 
-type ViewMode = 'list' | 'kanban';
+type ViewMode = 'list' | 'chat';
 
 export default function LeadsPage() {
   const [view, setView] = useState<ViewMode>('list');
@@ -54,42 +54,10 @@ export default function LeadsPage() {
     refetchInterval: 10000,
   });
 
-  const { data: kanbanData, isLoading: kanbanLoading } = useQuery<KanbanBoard>({
-    queryKey: ['leads', 'kanban'],
-    queryFn: async () => (await api.get('/leads/kanban')).data,
-    enabled: view === 'kanban',
-    refetchInterval: 10000,
-  });
-
   const updateEtiqueta = useMutation({
     mutationFn: ({ id, etiqueta_id }: { id: number; etiqueta_id: string }) =>
       api.patch(`/leads/${id}/etiqueta`, { etiqueta_id }),
-    onMutate: async ({ id: leadId, etiqueta_id: etiquetaId }) => {
-      await queryClient.cancelQueries({ queryKey: ['leads', 'kanban'] });
-      const previous = queryClient.getQueryData<KanbanBoard>(['leads', 'kanban']);
-      if (previous) {
-        const newColunas: Record<string, Lead[]> = {};
-        let movedLead: Lead | undefined;
-        for (const [etId, leads] of Object.entries(previous.colunas)) {
-          const idx = leads.findIndex((l) => l.id_number === leadId);
-          if (idx !== -1) {
-            movedLead = leads[idx];
-            newColunas[etId] = leads.filter((l) => l.id_number !== leadId);
-          } else {
-            newColunas[etId] = leads;
-          }
-        }
-        if (movedLead) {
-          newColunas[etiquetaId] = [...(newColunas[etiquetaId] || []), { ...movedLead, etiqueta_id: etiquetaId }];
-        }
-        queryClient.setQueryData<KanbanBoard>(['leads', 'kanban'], { ...previous, colunas: newColunas });
-      }
-      return { previous };
-    },
-    onError: (_err, _vars, context) => {
-      if (context?.previous) queryClient.setQueryData(['leads', 'kanban'], context.previous);
-      toast.error('Erro ao mover lead.');
-    },
+    onError: () => toast.error('Erro ao mover lead.'),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['leads'] }),
   });
 
@@ -99,10 +67,6 @@ export default function LeadsPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['leads'] }),
     onError: () => toast.error('Erro ao atribuir vendedor.'),
   });
-
-  const handleDrop = useCallback((leadId: number, etiquetaId: string) => {
-    updateEtiqueta.mutate({ id: leadId, etiqueta_id: etiquetaId });
-  }, [updateEtiqueta]);
 
   return (
     <div className="p-6">
@@ -141,15 +105,15 @@ export default function LeadsPage() {
         <div className="flex bg-white border border-gray-200 rounded-lg p-1">
           <button
             onClick={() => setView('list')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${view === 'list' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-50'}`}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${view === 'list' ? 'bg-primary text-white' : 'text-gray-600 hover:bg-gray-50'}`}
           >
             <LayoutList size={15} /> Lista
           </button>
           <button
-            onClick={() => setView('kanban')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${view === 'kanban' ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-50'}`}
+            onClick={() => setView('chat')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${view === 'chat' ? 'bg-primary text-white' : 'text-gray-600 hover:bg-gray-50'}`}
           >
-            <Kanban size={15} /> Kanban
+            <MessageCircle size={15} /> Chat
           </button>
         </div>
 
@@ -192,14 +156,7 @@ export default function LeadsPage() {
           isAdmin={isAdmin}
         />
       ) : (
-        <LeadKanban
-          data={kanbanData}
-          loading={kanbanLoading}
-          onDrop={handleDrop}
-          vendedores={vendedores}
-          isAdmin={isAdmin}
-          onSelectLead={setSelectedLead}
-        />
+        <ChatScreen etiquetas={etiquetas} />
       )}
 
       <UploadModal

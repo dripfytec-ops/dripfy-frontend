@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { toast } from 'sonner';
 import api from '@/lib/api';
 import { auth } from '@/lib/auth';
+import Logo from '@/components/ui/Logo';
 
 const schema = z.object({
   email: z.string().email('E-mail inválido'),
@@ -41,7 +42,9 @@ export default function LoginPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 to-blue-900 flex items-center justify-center p-4">
       <div className="card w-full max-w-md p-8">
         <div className="text-center mb-8">
-          <div className="text-4xl mb-2">💧</div>
+          <div className="flex justify-center mb-3">
+            <Logo variant="mark" size={48} />
+          </div>
           <h1 className="text-2xl font-bold text-gray-900">Dripfy</h1>
           <p className="text-gray-500 text-sm mt-1">Plataforma de Disparos WhatsApp</p>
         </div>

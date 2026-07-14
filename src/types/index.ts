@@ -81,6 +81,9 @@ export interface Lead {
   disparado: boolean;
   iniciado_pelo_cliente: boolean;
   campanha_id?: string;
+  last_message_at?: string;
+  last_message_preview?: string;
+  unread_count: number;
   criado_em: string;
 }
 
@@ -114,7 +117,3 @@ export interface PaginatedResponse<T> {
   totalPages: number;
 }
 
-export interface KanbanBoard {
-  etiquetas: Etiqueta[];
-  colunas: Record<string, Lead[]>;
-}

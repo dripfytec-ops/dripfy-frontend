@@ -85,7 +85,7 @@ function MemberModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-xl">
+      <div className="card w-full max-w-md p-6">
         <div className="flex items-center justify-between mb-5">
           <h2 className="font-bold text-gray-900 text-lg">
             {member ? 'Editar Vendedor' : 'Novo Vendedor'}
@@ -251,7 +251,7 @@ export default function VendedoresPage() {
         </div>
         <button
           onClick={() => setModal({ open: true, member: null })}
-          className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors"
+          className="btn-primary flex items-center gap-2"
         >
           <Plus size={16} /> Novo Vendedor
         </button>
@@ -264,7 +264,7 @@ export default function VendedoresPage() {
           { label: 'Ativos', value: ativos.length, color: 'text-green-600' },
           { label: 'Inativos', value: inativos.length, color: 'text-gray-400' },
         ].map((s) => (
-          <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-4 text-center">
+          <div key={s.label} className="card p-4 text-center">
             <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
             <p className="text-xs text-gray-400 mt-0.5">{s.label}</p>
           </div>
@@ -276,7 +276,7 @@ export default function VendedoresPage() {
           <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
       ) : members.length === 0 ? (
-        <div className="bg-white rounded-xl border border-dashed border-gray-200 p-12 text-center">
+        <div className="card border-dashed p-12 text-center">
           <UserCircle2 size={40} className="mx-auto text-gray-300 mb-3" />
           <p className="text-gray-500 font-medium">Nenhum membro cadastrado</p>
           <p className="text-gray-400 text-sm mt-1">Crie o primeiro vendedor para começar a atribuir leads</p>
@@ -288,7 +288,7 @@ export default function VendedoresPage() {
           </button>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="card overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
