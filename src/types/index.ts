@@ -94,6 +94,7 @@ export interface Campaign {
   template_name: string;
   delay_segundos: number;
   status: CampaignStatus;
+  canal?: { id: string; nome: string; phone_number_id: string };
   total_leads: number;
   enviados: number;
   erros: number;

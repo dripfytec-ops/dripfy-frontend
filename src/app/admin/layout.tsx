@@ -30,38 +30,38 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="min-h-screen flex bg-gray-50">
-      <aside className="w-64 bg-slate-900 flex flex-col">
-        <div className="p-6 border-b border-white/10">
-          <div className="flex items-center gap-2">
-            <Logo variant="mark" size={26} />
+      <aside className="w-60 flex-shrink-0 flex flex-col" style={{ background: '#0f1b3d' }}>
+        <div className="px-5 py-5 border-b border-white/10">
+          <div className="flex items-center gap-2.5">
+            <Logo variant="mark" size={30} />
             <div>
-              <p className="text-white font-bold">Dripfy Master</p>
-              <p className="text-white/50 text-xs">Painel Administrativo</p>
+              <p className="text-white font-bold leading-tight">Dripfy</p>
+              <p className="text-white/40 text-xs">Painel Administrativo</p>
             </div>
           </div>
         </div>
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 px-3 py-4 space-y-1">
           {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
                 pathname === item.href
-                  ? 'bg-primary text-white'
-                  : 'text-slate-400 hover:bg-white/10 hover:text-white'
+                  ? 'bg-white/10 text-white font-medium'
+                  : 'text-white/50 hover:bg-white/5 hover:text-white/80'
               }`}
             >
-              <item.icon size={18} />
+              <item.icon size={17} strokeWidth={1.75} />
               {item.label}
             </Link>
           ))}
         </nav>
-        <div className="p-4 border-t border-white/10">
+        <div className="px-3 pb-4 pt-3 border-t border-white/10">
           <button
             onClick={() => { auth.clear(); router.push('/login'); }}
-            className="flex items-center gap-2 text-slate-400 hover:text-white text-sm px-3 py-2 w-full rounded-lg hover:bg-white/10"
+            className="flex items-center justify-center gap-2 text-white/70 hover:text-white bg-white/5 hover:bg-white/10 text-sm px-3 py-2 w-full rounded-lg transition-colors"
           >
-            <LogOut size={16} /> Sair
+            <LogOut size={15} strokeWidth={1.75} /> Sair
           </button>
         </div>
       </aside>

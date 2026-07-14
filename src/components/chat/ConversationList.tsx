@@ -42,27 +42,26 @@ export default function ConversationList({ selectedLeadId, onSelect, etiquetas }
   return (
     <div className="w-[340px] shrink-0 flex flex-col border-r border-gray-200 bg-white">
       {/* Header */}
-      <div className="px-4 py-3 flex items-center justify-between border-b border-gray-100" style={{ background: '#f0f2f5' }}>
-        <h2 className="text-base font-semibold text-gray-900">Conversas</h2>
+      <div className="px-4 py-3.5 flex items-center justify-between border-b border-gray-100 bg-white">
+        <h2 className="text-base font-bold text-gray-900">Conversas</h2>
         <Link
           href="/dashboard/settings"
           title="Gerenciar etiquetas"
-          className="w-9 h-9 rounded-full flex items-center justify-center text-gray-600 hover:bg-black/5 transition-colors"
+          className="w-9 h-9 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors"
         >
           <Settings2 size={16} />
         </Link>
       </div>
 
       {/* Search */}
-      <div className="px-3 py-2 border-b border-gray-100">
+      <div className="px-3 py-2.5 border-b border-gray-100 bg-white">
         <div className="relative">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar contato..."
-            className="w-full rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none"
-            style={{ background: '#f0f2f5' }}
+            placeholder="Pesquisar contato ou conversa"
+            className="w-full bg-gray-100 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary/30"
           />
         </div>
       </div>
@@ -102,7 +101,7 @@ export default function ConversationList({ selectedLeadId, onSelect, etiquetas }
             <button
               key={lead.id_number}
               onClick={() => onSelect(lead)}
-              className={`w-full flex items-center gap-3 px-4 py-3 text-left border-b border-gray-50 transition-colors ${isActive ? 'bg-[#f0f2f5]' : 'hover:bg-gray-50'}`}
+              className={`w-full flex items-center gap-3 px-4 py-3 text-left border-b border-gray-50 transition-colors ${isActive ? 'bg-primary/5' : 'hover:bg-gray-50'}`}
             >
               <span
                 className="relative rounded-full flex items-center justify-center text-white font-semibold shrink-0 w-11 h-11 text-sm"
@@ -112,18 +111,13 @@ export default function ConversationList({ selectedLeadId, onSelect, etiquetas }
               </span>
               <span className="min-w-0 flex-1">
                 <span className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-medium text-gray-900 truncate">{lead.nome}</span>
+                  <span className="text-sm font-semibold text-gray-900 truncate">{lead.nome}</span>
                   <span className="text-[11px] text-gray-400 shrink-0">{formatListTime(lead.last_message_at ?? lead.criado_em)}</span>
                 </span>
                 <span className="flex items-center justify-between gap-2 mt-0.5">
                   <span className="text-xs text-gray-500 truncate">{lead.last_message_preview || 'Nenhuma mensagem ainda'}</span>
                   {unread && (
-                    <span
-                      className="flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-white text-[10px] font-semibold shrink-0"
-                      style={{ background: '#25D366' }}
-                    >
-                      {lead.unread_count > 9 ? '9+' : lead.unread_count}
-                    </span>
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: '#25D366' }} />
                   )}
                 </span>
               </span>

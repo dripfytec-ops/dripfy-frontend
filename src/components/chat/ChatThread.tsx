@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { Send, CheckCheck, Check, Eye, AlertCircle, MessageSquare, SendHorizonal, Clock, Trash2, PhoneIncoming } from 'lucide-react';
 import api from '@/lib/api';
 import { Lead, Message, MessageStatus, PaginatedResponse } from '@/types';
+import { getInitials, getAvatarColor } from '@/lib/avatar';
 
 interface Props {
   lead: Lead;
@@ -137,28 +138,31 @@ export default function ChatThread({ lead }: Props) {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="bg-slate-900 text-white px-4 py-4 flex items-center gap-3 flex-shrink-0">
-        <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center font-bold text-sm flex-shrink-0">
-          {lead.nome.charAt(0).toUpperCase()}
+      <div className="bg-white text-gray-900 px-4 py-3.5 flex items-center gap-3 flex-shrink-0 border-b border-gray-100">
+        <div
+          className="w-9 h-9 rounded-full flex items-center justify-center font-semibold text-sm flex-shrink-0 text-white"
+          style={{ background: getAvatarColor(lead.nome) }}
+        >
+          {getInitials(lead.nome)}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-semibold truncate">{lead.nome}</p>
-          <p className="text-xs text-slate-400 font-mono">{lead.telefone}</p>
+          <p className="font-semibold truncate text-sm">{lead.nome}</p>
+          <p className="text-xs text-gray-400 font-mono">{lead.telefone}</p>
         </div>
         <div className="flex items-center gap-2">
           {lead.iniciado_pelo_cliente && (
-            <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium bg-amber-500/20 text-amber-300">
+            <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium bg-amber-50 text-amber-600">
               <PhoneIncoming size={11} /> Cliente iniciou
             </span>
           )}
-          <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: etiquetaCor + '30', color: etiquetaCor }}>
+          <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: etiquetaCor + '20', color: etiquetaCor }}>
             {etiquetaNome}
           </span>
           <button
             onClick={handleDelete}
             disabled={deleteMutation.isPending}
             title="Apagar histórico"
-            className="p-1.5 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded-lg transition-colors"
+            className="p-1.5 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-lg transition-colors"
           >
             <Trash2 size={16} />
           </button>
