@@ -102,8 +102,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* Content */}
-      <main className="flex-1 overflow-auto">
-        {children}
+      <main className="flex-1 overflow-auto flex flex-col min-w-0">
+        <header className="h-14 bg-white border-b border-gray-100 flex items-center justify-between px-6 flex-shrink-0">
+          <h2 className="text-sm font-semibold text-gray-700">
+            {navItems.find((item) => item.href === pathname)?.label ?? 'Dripfy'}
+          </h2>
+          <p className="text-xs text-gray-400 capitalize">
+            {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}
+          </p>
+        </header>
+        <div className="flex-1 overflow-auto">
+          {children}
+        </div>
       </main>
     </div>
   );
