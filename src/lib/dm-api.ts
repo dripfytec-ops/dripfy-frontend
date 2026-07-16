@@ -50,7 +50,7 @@ export const useCampanhaDM = (id: string | undefined) => useQuery<CampanhaDetalh
 export async function createCampanhaDM(data: {
   nome: string; canal_id: string; template_name: string; template_params: string[];
   header_image_url: string | null; agendado_para: string | null;
-  contatos: { nome?: string; telefone: string }[];
+  contatos: { nome?: string; telefone: string; cpf?: string }[];
 }): Promise<CampanhaDM> {
   return api.post('/disparo-massa/campanhas', data).then((r) => r.data);
 }

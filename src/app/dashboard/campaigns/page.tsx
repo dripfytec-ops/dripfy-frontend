@@ -42,6 +42,7 @@ const statusConfig: Record<StatusCampanhaDM, { label: string; className: string 
 interface ContatoCSV {
   nome: string;
   telefone: string;
+  cpf?: string;
 }
 
 // ── Modal: gerenciar canais ─────────────────────────────────────────────────
@@ -267,8 +268,9 @@ function NovaCampanhaModal({ canais, onClose, onCreated }: {
             const k = key.trim().toLowerCase();
             const v = row[key]?.toString().trim() || '';
             if (!v) continue;
-            if (k === 'nome') entry.nome = v;
+            if (['nome', 'nome completo'].includes(k)) entry.nome = v;
             else if (['telefone', 'fone', 'celular', 'whatsapp'].includes(k)) entry.telefone = v.replace(/\D/g, '');
+            else if (k === 'cpf') entry.cpf = v.replace(/\D/g, '');
           }
           return entry;
         }).filter((c) => c.telefone);
@@ -362,7 +364,7 @@ function NovaCampanhaModal({ canais, onClose, onCreated }: {
           <div>
             <label className="text-xs text-gray-500 mb-1 block">Lista de Contatos (CSV)</label>
             <p className="text-[11px] text-gray-400 mb-1.5">
-              Obrigatórias: <b>nome</b> e <b>telefone</b> (com DDI, ex: 5541999999999).
+              Obrigatórias: <b>nome</b> e <b>telefone</b> (com DDI, ex: 5541999999999). Opcional: <b>cpf</b> — aparece nos detalhes do contato no Chat.
             </p>
             <input type="file" accept=".csv" onChange={handleCSV}
               className="w-full text-sm text-gray-500 file:mr-3 file:bg-blue-500 file:text-white file:border-0 file:rounded-lg file:px-3 file:py-1.5 file:text-xs file:cursor-pointer" />

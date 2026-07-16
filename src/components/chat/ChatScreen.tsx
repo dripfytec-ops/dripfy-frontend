@@ -4,6 +4,7 @@ import { MessageCircle } from 'lucide-react';
 import { Etiqueta, Lead } from '@/types';
 import ConversationList from './ConversationList';
 import ChatThread from './ChatThread';
+import ContactDetails from './ContactDetails';
 
 interface Props {
   etiquetas: Etiqueta[];
@@ -29,6 +30,7 @@ export default function ChatScreen({ etiquetas }: Props) {
           </div>
         )}
       </div>
+      {selectedLead && <ContactDetails lead={selectedLead} />}
     </div>
   );
 }
