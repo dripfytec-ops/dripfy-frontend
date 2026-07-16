@@ -1,10 +1,17 @@
 'use client';
-import { PhoneIncoming, IdCard, Phone, CalendarDays, Tag, UserCircle2 } from 'lucide-react';
-import { Lead } from '@/types';
+import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
+import { PhoneIncoming, IdCard, Phone, CalendarDays, Tag, UserCircle2, Pencil, Check, X } from 'lucide-react';
+import api from '@/lib/api';
+import { Lead, Etiqueta, Vendedor } from '@/types';
 import { getInitials, getAvatarColor } from '@/lib/avatar';
 
 interface Props {
   lead: Lead;
+  etiquetas: Etiqueta[];
+  vendedores: Vendedor[];
+  isAdmin: boolean;
+  onUpdated: (lead: Lead) => void;
 }
 
 function formatCpf(cpf: string): string {
@@ -29,21 +36,118 @@ function Field({ icon: Icon, label, value }: { icon: React.ElementType; label: s
   );
 }
 
-export default function ContactDetails({ lead }: Props) {
+function EditField({ icon: Icon, label, children }: { icon: React.ElementType; label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-start gap-2.5">
+      <Icon size={15} className="text-gray-400 mt-2 flex-shrink-0" />
+      <div className="min-w-0 flex-1">
+        <label className="text-[11px] text-gray-400">{label}</label>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+export default function ContactDetails({ lead, etiquetas, vendedores, isAdmin, onUpdated }: Props) {
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [nome, setNome] = useState(lead.nome);
+  const [telefone, setTelefone] = useState(lead.telefone);
+  const [cpf, setCpf] = useState(lead.cpf || '');
+  const [etiquetaId, setEtiquetaId] = useState(lead.etiqueta_id || '');
+  const [vendedorId, setVendedorId] = useState(lead.vendedor_id || '');
+
+  useEffect(() => {
+    setNome(lead.nome);
+    setTelefone(lead.telefone);
+    setCpf(lead.cpf || '');
+    setEtiquetaId(lead.etiqueta_id || '');
+    setVendedorId(lead.vendedor_id || '');
+    setEditing(false);
+  }, [lead.id_number]);
+
+  const startEdit = () => setEditing(true);
+  const cancelEdit = () => {
+    setNome(lead.nome);
+    setTelefone(lead.telefone);
+    setCpf(lead.cpf || '');
+    setEtiquetaId(lead.etiqueta_id || '');
+    setVendedorId(lead.vendedor_id || '');
+    setEditing(false);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const calls: Promise<any>[] = [
+        api.patch(`/leads/${lead.id_number}`, { nome, telefone, cpf: cpf || null }),
+      ];
+      if (etiquetaId !== (lead.etiqueta_id || '')) {
+        calls.push(api.patch(`/leads/${lead.id_number}/etiqueta`, { etiqueta_id: etiquetaId }));
+      }
+      if (isAdmin && vendedorId !== (lead.vendedor_id || '')) {
+        calls.push(api.patch(`/leads/${lead.id_number}/vendedor`, { vendedor_id: vendedorId || null }));
+      }
+      await Promise.all(calls);
+
+      const novaEtiqueta = etiquetas.find((e) => e.id === etiquetaId);
+      const novoVendedor = vendedores.find((v) => v.id === vendedorId);
+      onUpdated({
+        ...lead,
+        nome,
+        telefone,
+        cpf: cpf || undefined,
+        etiqueta_id: etiquetaId || undefined,
+        etiqueta: novaEtiqueta,
+        vendedor_id: vendedorId || undefined,
+        vendedor: novoVendedor,
+      });
+      toast.success('Contato atualizado!');
+      setEditing(false);
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || 'Erro ao salvar contato.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="w-[280px] shrink-0 flex flex-col border-l border-gray-200 bg-white overflow-y-auto">
-      <div className="px-4 py-3.5 border-b border-gray-100">
+      <div className="px-4 py-3.5 border-b border-gray-100 flex items-center justify-between">
         <h2 className="text-base font-bold text-gray-900">Contato</h2>
+        {!editing ? (
+          <button onClick={startEdit} className="p-1.5 text-gray-400 hover:text-primary hover:bg-blue-50 rounded-lg transition-colors">
+            <Pencil size={15} />
+          </button>
+        ) : (
+          <div className="flex items-center gap-1">
+            <button onClick={handleSave} disabled={saving} className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50">
+              <Check size={16} />
+            </button>
+            <button onClick={cancelEdit} disabled={saving} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg transition-colors">
+              <X size={16} />
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="flex flex-col items-center text-center px-4 py-6 border-b border-gray-100">
         <span
-          className="w-16 h-16 rounded-full flex items-center justify-center text-white font-semibold text-xl"
+          className="w-16 h-16 rounded-full flex items-center justify-center text-white font-semibold text-xl flex-shrink-0"
           style={{ background: getAvatarColor(lead.nome) }}
         >
           {getInitials(lead.nome)}
         </span>
-        <p className="font-semibold text-gray-900 mt-3">{lead.nome}</p>
+        {editing ? (
+          <input
+            value={nome}
+            onChange={(e) => setNome(e.target.value)}
+            className="input text-center mt-3 text-sm font-semibold"
+            placeholder="Nome completo"
+          />
+        ) : (
+          <p className="font-semibold text-gray-900 mt-3">{lead.nome}</p>
+        )}
         {lead.iniciado_pelo_cliente && (
           <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium bg-amber-50 text-amber-600 mt-1.5">
             <PhoneIncoming size={11} /> Cliente iniciou
@@ -52,13 +156,36 @@ export default function ContactDetails({ lead }: Props) {
       </div>
 
       <div className="px-4 py-4 space-y-4">
-        <Field icon={Phone} label="Telefone" value={lead.telefone} />
-        {lead.cpf && <Field icon={IdCard} label="CPF" value={formatCpf(lead.cpf)} />}
-        {lead.etiqueta && (
-          <Field icon={Tag} label="Etiqueta" value={lead.etiqueta.nome} />
-        )}
-        {lead.vendedor && (
-          <Field icon={UserCircle2} label="Vendedor" value={lead.vendedor.nome} />
+        {editing ? (
+          <>
+            <EditField icon={Phone} label="Telefone">
+              <input value={telefone} onChange={(e) => setTelefone(e.target.value)} className="input mt-1 text-sm" />
+            </EditField>
+            <EditField icon={IdCard} label="CPF">
+              <input value={cpf} onChange={(e) => setCpf(e.target.value)} className="input mt-1 text-sm" placeholder="Não informado" />
+            </EditField>
+            <EditField icon={Tag} label="Etiqueta">
+              <select value={etiquetaId} onChange={(e) => setEtiquetaId(e.target.value)} className="input mt-1 text-sm">
+                <option value="">Sem etiqueta</option>
+                {etiquetas.map((et) => <option key={et.id} value={et.id}>{et.nome}</option>)}
+              </select>
+            </EditField>
+            {isAdmin && (
+              <EditField icon={UserCircle2} label="Vendedor">
+                <select value={vendedorId} onChange={(e) => setVendedorId(e.target.value)} className="input mt-1 text-sm">
+                  <option value="">Sem vendedor</option>
+                  {vendedores.map((v) => <option key={v.id} value={v.id}>{v.nome}</option>)}
+                </select>
+              </EditField>
+            )}
+          </>
+        ) : (
+          <>
+            <Field icon={Phone} label="Telefone" value={lead.telefone} />
+            <Field icon={IdCard} label="CPF" value={lead.cpf ? formatCpf(lead.cpf) : 'Não informado'} />
+            <Field icon={Tag} label="Etiqueta" value={lead.etiqueta?.nome || 'Sem etiqueta'} />
+            <Field icon={UserCircle2} label="Vendedor" value={lead.vendedor?.nome || 'Sem vendedor'} />
+          </>
         )}
         <Field icon={CalendarDays} label="Cadastrado em" value={formatDate(lead.criado_em)} />
       </div>

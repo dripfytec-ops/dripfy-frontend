@@ -1,17 +1,26 @@
 'use client';
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { MessageCircle } from 'lucide-react';
-import { Etiqueta, Lead } from '@/types';
+import { Etiqueta, Lead, Vendedor } from '@/types';
 import ConversationList from './ConversationList';
 import ChatThread from './ChatThread';
 import ContactDetails from './ContactDetails';
 
 interface Props {
   etiquetas: Etiqueta[];
+  vendedores?: Vendedor[];
+  isAdmin?: boolean;
 }
 
-export default function ChatScreen({ etiquetas }: Props) {
+export default function ChatScreen({ etiquetas, vendedores = [], isAdmin = false }: Props) {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const queryClient = useQueryClient();
+
+  const handleUpdated = (updated: Lead) => {
+    setSelectedLead(updated);
+    queryClient.invalidateQueries({ queryKey: ['leads', 'conversas'] });
+  };
 
   return (
     <div className="card flex overflow-hidden" style={{ height: 'calc(100vh - 276px)' }}>
@@ -30,7 +39,15 @@ export default function ChatScreen({ etiquetas }: Props) {
           </div>
         )}
       </div>
-      {selectedLead && <ContactDetails lead={selectedLead} />}
+      {selectedLead && (
+        <ContactDetails
+          lead={selectedLead}
+          etiquetas={etiquetas}
+          vendedores={vendedores}
+          isAdmin={isAdmin}
+          onUpdated={handleUpdated}
+        />
+      )}
     </div>
   );
 }

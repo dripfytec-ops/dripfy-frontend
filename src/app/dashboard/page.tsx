@@ -2,10 +2,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { Users, Send, MessageSquare, CheckCircle2 } from 'lucide-react';
 import api from '@/lib/api';
-import { Etiqueta } from '@/types';
+import { auth } from '@/lib/auth';
+import { Etiqueta, Vendedor } from '@/types';
 import ChatScreen from '@/components/chat/ChatScreen';
 
 export default function LeadsPage() {
+  const user = auth.getUser();
+  const isAdmin = user?.role === 'lojista_admin' || user?.role === 'admin_master';
+
   const { data: stats } = useQuery<{ total: number; disparados: number; emAtendimento: number; mensagens: number }>({
     queryKey: ['leads-stats'],
     queryFn: async () => (await api.get('/leads/stats')).data,
@@ -15,6 +19,12 @@ export default function LeadsPage() {
   const { data: etiquetas = [] } = useQuery<Etiqueta[]>({
     queryKey: ['etiquetas'],
     queryFn: async () => (await api.get('/etiquetas')).data,
+  });
+
+  const { data: vendedores = [] } = useQuery<Vendedor[]>({
+    queryKey: ['vendedores'],
+    queryFn: async () => { try { return (await api.get('/leads/vendedores')).data; } catch { return []; } },
+    enabled: isAdmin,
   });
 
   return (
@@ -44,7 +54,7 @@ export default function LeadsPage() {
         ))}
       </div>
 
-      <ChatScreen etiquetas={etiquetas} />
+      <ChatScreen etiquetas={etiquetas} vendedores={vendedores} isAdmin={isAdmin} />
     </div>
   );
 }
