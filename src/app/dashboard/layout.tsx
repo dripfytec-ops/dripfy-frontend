@@ -15,7 +15,7 @@ const NAV_BASE = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Leads', adminOnly: false },
   { href: '/dashboard/campaigns', icon: Megaphone, label: 'Campanhas', adminOnly: false },
   { href: '/dashboard/vendedores', icon: Users, label: 'Equipe', adminOnly: true },
-  { href: '/dashboard/settings', icon: Settings, label: 'Canais', adminOnly: true },
+  { href: '/dashboard/settings', icon: Settings, label: 'Configurações', adminOnly: true },
 ];
 
 const ROLE_LABEL: Record<string, string> = {
