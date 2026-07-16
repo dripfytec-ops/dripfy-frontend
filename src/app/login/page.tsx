@@ -43,7 +43,7 @@ export default function LoginPage() {
       <div className="card w-full max-w-md p-8">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-3">
-            <Logo variant="mark" size={48} />
+            <Logo variant="mark" size={48} theme="light" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Dripfy</h1>
           <p className="text-gray-500 text-sm mt-1">Plataforma de Disparos WhatsApp</p>
