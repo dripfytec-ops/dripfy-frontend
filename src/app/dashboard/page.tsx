@@ -1,16 +1,11 @@
 'use client';
-import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Upload, Users, Send, MessageSquare, CheckCircle2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { Users, Send, MessageSquare, CheckCircle2 } from 'lucide-react';
 import api from '@/lib/api';
 import { Etiqueta } from '@/types';
 import ChatScreen from '@/components/chat/ChatScreen';
-import UploadModal from '@/components/leads/UploadModal';
 
 export default function LeadsPage() {
-  const [uploadOpen, setUploadOpen] = useState(false);
-  const queryClient = useQueryClient();
-
   const { data: stats } = useQuery<{ total: number; disparados: number; emAtendimento: number; mensagens: number }>({
     queryKey: ['leads-stats'],
     queryFn: async () => (await api.get('/leads/stats')).data,
@@ -24,14 +19,9 @@ export default function LeadsPage() {
 
   return (
     <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Chat</h1>
-          <p className="text-gray-500 text-sm mt-0.5">Converse com seus leads e acompanhe o atendimento</p>
-        </div>
-        <button onClick={() => setUploadOpen(true)} className="btn-primary flex items-center gap-2">
-          <Upload size={16} /> Importar Planilha
-        </button>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Chat</h1>
+        <p className="text-gray-500 text-sm mt-0.5">Converse com seus leads e acompanhe o atendimento</p>
       </div>
 
       {/* Stats */}
@@ -55,12 +45,6 @@ export default function LeadsPage() {
       </div>
 
       <ChatScreen etiquetas={etiquetas} />
-
-      <UploadModal
-        open={uploadOpen}
-        onClose={() => setUploadOpen(false)}
-        onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['leads'] }); setUploadOpen(false); }}
-      />
     </div>
   );
 }
