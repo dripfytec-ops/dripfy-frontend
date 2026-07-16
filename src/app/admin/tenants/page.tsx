@@ -41,8 +41,8 @@ type TenantDetail = {
   slug: string;
   status_assinatura: string;
   users: Array<{ id: string; nome: string; email: string; role: string; ativo: boolean }>;
-  canais: Array<{ id: string; nome: string; phone_number_id: string; ativo: boolean }>;
-  _count: { leads: number; campanhas: number };
+  dm_canais: Array<{ id: string; nome: string; phone_number_id: string; ativo: boolean }>;
+  _count: { leads: number; dm_campanhas: number };
 };
 
 export default function TenantsPage() {
@@ -333,11 +333,11 @@ export default function TenantsPage() {
             </div>
 
             {/* Canais WhatsApp */}
-            {tenantDetail && tenantDetail.canais.length > 0 && (
+            {tenantDetail && tenantDetail.dm_canais.length > 0 && (
               <div className="mb-5">
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Canais WhatsApp</p>
                 <div className="space-y-2">
-                  {tenantDetail.canais.map((canal) => (
+                  {tenantDetail.dm_canais.map((canal) => (
                     <div key={canal.id} className="flex items-center gap-3 p-2.5 bg-gray-50 rounded-lg">
                       <div className={`w-2 h-2 rounded-full flex-shrink-0 ${canal.ativo ? 'bg-green-400' : 'bg-gray-300'}`} />
                       <Smartphone size={14} className="text-gray-400 flex-shrink-0" />
@@ -362,7 +362,7 @@ export default function TenantsPage() {
                   <p className="text-xs text-gray-500">Leads</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-xl font-bold text-gray-900">{tenantDetail._count.campanhas}</p>
+                  <p className="text-xl font-bold text-gray-900">{tenantDetail._count.dm_campanhas}</p>
                   <p className="text-xs text-gray-500">Campanhas</p>
                 </div>
               </div>

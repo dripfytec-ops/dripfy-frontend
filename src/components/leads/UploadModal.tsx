@@ -34,7 +34,6 @@ export default function UploadModal({ open, onClose, onSuccess }: Props) {
   const [tab, setTab] = useState<'arquivo' | 'colar'>('colar');
   const [file, setFile] = useState<File | null>(null);
   const [pasteText, setPasteText] = useState('');
-  const [campaignId, setCampaignId] = useState('');
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -43,18 +42,17 @@ export default function UploadModal({ open, onClose, onSuccess }: Props) {
   const preview = parsePaste(pasteText);
 
   const handleUpload = async () => {
-    const params = campaignId ? `?campanha_id=${campaignId}` : '';
     setLoading(true);
     try {
       let res: any;
       if (tab === 'colar') {
         if (!pasteText.trim()) { toast.error('Cole os dados primeiro.'); setLoading(false); return; }
-        res = await api.post(`/leads/bulk${params}`, { text: pasteText });
+        res = await api.post('/leads/bulk', { text: pasteText });
       } else {
         if (!file) { toast.error('Selecione um arquivo.'); setLoading(false); return; }
         const formData = new FormData();
         formData.append('file', file);
-        res = await api.post(`/leads/upload${params}`, formData, {
+        res = await api.post('/leads/upload', formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
       }
