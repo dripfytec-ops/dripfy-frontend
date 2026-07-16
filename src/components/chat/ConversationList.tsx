@@ -1,8 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Search, Settings2 } from 'lucide-react';
-import Link from 'next/link';
+import { Search } from 'lucide-react';
 import api from '@/lib/api';
 import { Lead, Etiqueta, PaginatedResponse } from '@/types';
 import { getInitials, getAvatarColor } from '@/lib/avatar';
@@ -44,13 +43,6 @@ export default function ConversationList({ selectedLeadId, onSelect, etiquetas }
       {/* Header */}
       <div className="px-4 py-3.5 flex items-center justify-between border-b border-gray-100 bg-white">
         <h2 className="text-base font-bold text-gray-900">Conversas</h2>
-        <Link
-          href="/dashboard/settings"
-          title="Gerenciar etiquetas"
-          className="w-9 h-9 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors"
-        >
-          <Settings2 size={16} />
-        </Link>
       </div>
 
       {/* Search */}
