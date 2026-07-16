@@ -1,29 +1,15 @@
 'use client';
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
-import { LayoutList, MessageCircle, Upload, Search, Users, Send, MessageSquare, CheckCircle2 } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Upload, Users, Send, MessageSquare, CheckCircle2 } from 'lucide-react';
 import api from '@/lib/api';
-import { auth } from '@/lib/auth';
-import { Lead, Etiqueta, Vendedor, PaginatedResponse } from '@/types';
-import LeadTable from '@/components/leads/LeadTable';
+import { Etiqueta } from '@/types';
 import ChatScreen from '@/components/chat/ChatScreen';
 import UploadModal from '@/components/leads/UploadModal';
-import LeadConversation from '@/components/leads/LeadConversation';
-
-type ViewMode = 'list' | 'chat';
 
 export default function LeadsPage() {
-  const [view, setView] = useState<ViewMode>('list');
-  const [search, setSearch] = useState('');
-  const [filterEtiqueta, setFilterEtiqueta] = useState('');
-  const [page, setPage] = useState(1);
   const [uploadOpen, setUploadOpen] = useState(false);
-  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const queryClient = useQueryClient();
-  const user = auth.getUser();
-
-  const isAdmin = user?.role === 'lojista_admin' || user?.role === 'admin_master';
 
   const { data: stats } = useQuery<{ total: number; disparados: number; emAtendimento: number; mensagens: number }>({
     queryKey: ['leads-stats'],
@@ -36,44 +22,12 @@ export default function LeadsPage() {
     queryFn: async () => (await api.get('/etiquetas')).data,
   });
 
-  const { data: vendedores = [] } = useQuery<Vendedor[]>({
-    queryKey: ['vendedores'],
-    queryFn: async () => { try { return (await api.get('/leads/vendedores')).data; } catch { return []; } },
-    enabled: isAdmin,
-  });
-
-  const { data: listData, isLoading: listLoading } = useQuery<PaginatedResponse<Lead>>({
-    queryKey: ['leads', 'list', { search, filterEtiqueta, page }],
-    queryFn: async () => {
-      const params: any = { page, limit: 20 };
-      if (search) params.search = search;
-      if (filterEtiqueta) params.etiqueta_id = filterEtiqueta;
-      return (await api.get('/leads', { params })).data;
-    },
-    enabled: view === 'list',
-    refetchInterval: 10000,
-  });
-
-  const updateEtiqueta = useMutation({
-    mutationFn: ({ id, etiqueta_id }: { id: number; etiqueta_id: string }) =>
-      api.patch(`/leads/${id}/etiqueta`, { etiqueta_id }),
-    onError: () => toast.error('Erro ao mover lead.'),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ['leads'] }),
-  });
-
-  const assignVendedor = useMutation({
-    mutationFn: ({ id, vendedor_id }: { id: number; vendedor_id: string | null }) =>
-      api.patch(`/leads/${id}/vendedor`, { vendedor_id }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['leads'] }),
-    onError: () => toast.error('Erro ao atribuir vendedor.'),
-  });
-
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Leads</h1>
-          <p className="text-gray-500 text-sm mt-0.5">Gerencie seus contatos e acompanhe o pipeline</p>
+          <h1 className="text-2xl font-bold text-gray-900">Chat</h1>
+          <p className="text-gray-500 text-sm mt-0.5">Converse com seus leads e acompanhe o atendimento</p>
         </div>
         <button onClick={() => setUploadOpen(true)} className="btn-primary flex items-center gap-2">
           <Upload size={16} /> Importar Planilha
@@ -100,74 +54,13 @@ export default function LeadsPage() {
         ))}
       </div>
 
-      {/* Controls */}
-      <div className="flex items-center gap-3 mb-4 flex-wrap">
-        <div className="flex bg-white border border-gray-200 rounded-lg p-1">
-          <button
-            onClick={() => setView('list')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${view === 'list' ? 'bg-primary text-white' : 'text-gray-600 hover:bg-gray-50'}`}
-          >
-            <LayoutList size={15} /> Lista
-          </button>
-          <button
-            onClick={() => setView('chat')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${view === 'chat' ? 'bg-primary text-white' : 'text-gray-600 hover:bg-gray-50'}`}
-          >
-            <MessageCircle size={15} /> Chat
-          </button>
-        </div>
-
-        {view === 'list' && (
-          <>
-            <div className="relative flex-1 max-w-xs">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                placeholder="Buscar por nome, CPF ou telefone..."
-                className="input pl-9"
-              />
-            </div>
-            <select
-              value={filterEtiqueta}
-              onChange={(e) => { setFilterEtiqueta(e.target.value); setPage(1); }}
-              className="input w-48"
-            >
-              <option value="">Todos os status</option>
-              {etiquetas.map((e) => (
-                <option key={e.id} value={e.id}>{e.nome}</option>
-              ))}
-            </select>
-          </>
-        )}
-      </div>
-
-      {view === 'list' ? (
-        <LeadTable
-          data={listData}
-          loading={listLoading}
-          page={page}
-          onPageChange={setPage}
-          etiquetas={etiquetas}
-          onChangeEtiqueta={(leadId, etiquetaId) => updateEtiqueta.mutate({ id: leadId, etiqueta_id: etiquetaId })}
-          onAssignVendedor={(leadId, vendedorId) => assignVendedor.mutate({ id: leadId, vendedor_id: vendedorId })}
-          onSelectLead={setSelectedLead}
-          vendedores={vendedores}
-          isAdmin={isAdmin}
-        />
-      ) : (
-        <ChatScreen etiquetas={etiquetas} />
-      )}
+      <ChatScreen etiquetas={etiquetas} />
 
       <UploadModal
         open={uploadOpen}
         onClose={() => setUploadOpen(false)}
         onSuccess={() => { queryClient.invalidateQueries({ queryKey: ['leads'] }); setUploadOpen(false); }}
       />
-
-      {selectedLead && (
-        <LeadConversation lead={selectedLead} onClose={() => setSelectedLead(null)} />
-      )}
     </div>
   );
 }
