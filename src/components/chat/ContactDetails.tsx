@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { PhoneIncoming, IdCard, Phone, CalendarDays, Tag, UserCircle2, Pencil, Check, X } from 'lucide-react';
+import { PhoneIncoming, IdCard, Phone, CalendarDays, Tag, UserCircle2, Pencil, Check, X, ChevronRight, ChevronLeft } from 'lucide-react';
 import api from '@/lib/api';
 import { Lead, Etiqueta, Vendedor } from '@/types';
 import { getInitials, getAvatarColor } from '@/lib/avatar';
@@ -12,6 +12,8 @@ interface Props {
   vendedores: Vendedor[];
   isAdmin: boolean;
   onUpdated: (lead: Lead) => void;
+  collapsed: boolean;
+  onToggleCollapsed: () => void;
 }
 
 function formatCpf(cpf: string): string {
@@ -48,7 +50,7 @@ function EditField({ icon: Icon, label, children }: { icon: React.ElementType; l
   );
 }
 
-export default function ContactDetails({ lead, etiquetas, vendedores, isAdmin, onUpdated }: Props) {
+export default function ContactDetails({ lead, etiquetas, vendedores, isAdmin, onUpdated, collapsed, onToggleCollapsed }: Props) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [nome, setNome] = useState(lead.nome);
@@ -111,10 +113,40 @@ export default function ContactDetails({ lead, etiquetas, vendedores, isAdmin, o
     }
   };
 
+  if (collapsed) {
+    return (
+      <div className="w-12 shrink-0 flex flex-col items-center border-l border-gray-200 bg-white py-3.5 gap-3">
+        <button
+          onClick={onToggleCollapsed}
+          title="Expandir dados do contato"
+          className="p-1.5 text-gray-400 hover:text-primary hover:bg-blue-50 rounded-lg transition-colors"
+        >
+          <ChevronLeft size={16} />
+        </button>
+        <span
+          className="w-9 h-9 rounded-full flex items-center justify-center text-white font-semibold text-xs flex-shrink-0"
+          style={{ background: getAvatarColor(lead.nome) }}
+          title={lead.nome}
+        >
+          {getInitials(lead.nome)}
+        </span>
+      </div>
+    );
+  }
+
   return (
     <div className="w-[280px] shrink-0 flex flex-col border-l border-gray-200 bg-white overflow-y-auto">
       <div className="px-4 py-3.5 border-b border-gray-100 flex items-center justify-between">
-        <h2 className="text-base font-bold text-gray-900">Contato</h2>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={onToggleCollapsed}
+            title="Recolher dados do contato"
+            className="p-1.5 text-gray-400 hover:text-primary hover:bg-blue-50 rounded-lg transition-colors"
+          >
+            <ChevronRight size={15} />
+          </button>
+          <h2 className="text-base font-bold text-gray-900">Contato</h2>
+        </div>
         {!editing ? (
           <button onClick={startEdit} className="p-1.5 text-gray-400 hover:text-primary hover:bg-blue-50 rounded-lg transition-colors">
             <Pencil size={15} />

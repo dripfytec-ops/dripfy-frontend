@@ -15,6 +15,7 @@ interface Props {
 
 export default function ChatScreen({ etiquetas, vendedores = [], isAdmin = false }: Props) {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [detailsCollapsed, setDetailsCollapsed] = useState(false);
   const queryClient = useQueryClient();
 
   const handleUpdated = (updated: Lead) => {
@@ -46,6 +47,8 @@ export default function ChatScreen({ etiquetas, vendedores = [], isAdmin = false
           vendedores={vendedores}
           isAdmin={isAdmin}
           onUpdated={handleUpdated}
+          collapsed={detailsCollapsed}
+          onToggleCollapsed={() => setDetailsCollapsed((v) => !v)}
         />
       )}
     </div>

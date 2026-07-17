@@ -29,11 +29,6 @@ export default function LeadsPage() {
 
   return (
     <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Chat</h1>
-        <p className="text-gray-500 text-sm mt-0.5">Converse com seus leads e acompanhe o atendimento</p>
-      </div>
-
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4 mb-6">
         {[

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import { User } from '@/types';
 import {
-  MessageCircle, Users, Megaphone, Settings, LogOut,
+  MessageCircle, Users, Megaphone, Settings, LogOut, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import Logo from '@/components/ui/Logo';
 import { getInitials, getAvatarColor } from '@/lib/avatar';
@@ -27,6 +27,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
+  const [collapsed, setCollapsed] = useState(false);
 
   const isAdmin = user?.role === 'lojista_admin' || user?.role === 'admin_master';
   const navItems = NAV_BASE.filter((item) => !item.adminOnly || isAdmin);
@@ -37,7 +38,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       return;
     }
     setUser(auth.getUser());
+    setCollapsed(localStorage.getItem('dripfy_sidebar_collapsed') === '1');
   }, [router]);
+
+  const toggleCollapsed = () => {
+    setCollapsed((prev) => {
+      localStorage.setItem('dripfy_sidebar_collapsed', prev ? '0' : '1');
+      return !prev;
+    });
+  };
 
   const handleLogout = () => {
     auth.clear();
@@ -49,14 +58,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen flex bg-gray-50">
       {/* Sidebar */}
-      <aside className="w-60 flex-shrink-0 flex flex-col" style={{ background: '#0f1b3d' }}>
+      <aside
+        className={`relative flex-shrink-0 flex flex-col transition-[width] duration-200 ${collapsed ? 'w-[68px]' : 'w-60'}`}
+        style={{ background: '#0f1b3d' }}
+      >
+        <button
+          onClick={toggleCollapsed}
+          title={collapsed ? 'Expandir menu' : 'Recolher menu'}
+          className="absolute -right-3 top-6 w-6 h-6 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center text-gray-500 hover:text-primary hover:border-primary transition-colors z-10"
+        >
+          {collapsed ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}
+        </button>
+
         <div className="px-5 py-5 border-b border-white/10">
           <div className="flex items-center gap-2.5">
             <Logo variant="mark" size={30} />
-            <div className="min-w-0">
-              <p className="text-white font-bold leading-tight truncate">Dripfy</p>
-              <p className="text-white/40 text-xs truncate">{user.tenant.nome_empresa}</p>
-            </div>
+            {!collapsed && (
+              <div className="min-w-0">
+                <p className="text-white font-bold leading-tight truncate">Dripfy</p>
+                <p className="text-white/40 text-xs truncate">{user.tenant.nome_empresa}</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -65,37 +87,42 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+              title={collapsed ? item.label : undefined}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${collapsed ? 'justify-center' : ''} ${
                 pathname === item.href
                   ? 'bg-white/10 text-white font-medium'
                   : 'text-white/50 hover:bg-white/5 hover:text-white/80'
               }`}
             >
               <item.icon size={17} strokeWidth={1.75} />
-              {item.label}
+              {!collapsed && item.label}
             </Link>
           ))}
         </nav>
 
         <div className="px-3 pb-4 pt-3 border-t border-white/10">
-          <div className="flex items-center gap-2.5 px-2 py-2 mb-2">
+          <div className={`flex items-center gap-2.5 px-2 py-2 mb-2 ${collapsed ? 'justify-center' : ''}`}>
             <div
               className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0"
               style={{ background: getAvatarColor(user.nome) }}
+              title={collapsed ? user.nome : undefined}
             >
               {getInitials(user.nome)}
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-white text-sm font-medium truncate">{user.nome}</p>
-              <p className="text-white/40 text-xs truncate">{ROLE_LABEL[user.role] || user.role}</p>
-            </div>
+            {!collapsed && (
+              <div className="flex-1 min-w-0">
+                <p className="text-white text-sm font-medium truncate">{user.nome}</p>
+                <p className="text-white/40 text-xs truncate">{ROLE_LABEL[user.role] || user.role}</p>
+              </div>
+            )}
           </div>
           <button
             onClick={handleLogout}
-            className="flex items-center justify-center gap-2 text-white/70 hover:text-white bg-white/5 hover:bg-white/10 text-sm px-3 py-2 w-full rounded-lg transition-colors"
+            title={collapsed ? 'Sair' : undefined}
+            className={`flex items-center justify-center gap-2 text-white/70 hover:text-white bg-white/5 hover:bg-white/10 text-sm px-3 py-2 w-full rounded-lg transition-colors ${collapsed ? 'px-0' : ''}`}
           >
             <LogOut size={15} strokeWidth={1.75} />
-            Sair
+            {!collapsed && 'Sair'}
           </button>
         </div>
       </aside>
