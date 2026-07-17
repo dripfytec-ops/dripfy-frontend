@@ -4,6 +4,14 @@ export type SubscriptionStatus = 'ativo' | 'inativo' | 'trial';
 export type MessageStatus = 'enviado' | 'entregue' | 'lido' | 'erro';
 export type MessageDirection = 'entrada' | 'saida';
 
+export interface BmToken {
+  id: string;
+  tenant_id: string;
+  nome: string;
+  token: string;
+  criado_em: string;
+}
+
 export interface Etiqueta {
   id: string;
   tenant_id: string;
