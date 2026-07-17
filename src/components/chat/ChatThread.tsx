@@ -2,8 +2,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Send, CheckCheck, Check, Eye, AlertCircle, MessageSquare, SendHorizonal, Clock, Trash2, PhoneIncoming } from 'lucide-react';
-import api from '@/lib/api';
+import { Send, CheckCheck, Check, Eye, AlertCircle, MessageSquare, SendHorizonal, Clock, Trash2, PhoneIncoming, FileText, Download } from 'lucide-react';
+import api, { getMediaUrl } from '@/lib/api';
 import { Lead, Message, MessageStatus, PaginatedResponse } from '@/types';
 import { getInitials, getAvatarColor } from '@/lib/avatar';
 
@@ -18,18 +18,56 @@ const STATUS_CONFIG: Record<MessageStatus, { label: string; icon: React.ReactNod
   erro:     { label: 'Erro',     icon: <AlertCircle size={13} />, color: 'text-red-500',   bg: 'bg-red-50' },
 };
 
+function MediaContent({ message }: { message: Message }) {
+  if (!message.media_url) return null;
+  const url = getMediaUrl(message.media_url);
+  const mime = message.media_mime_type || '';
+
+  if (mime.startsWith('image/')) {
+    return (
+      <a href={url} target="_blank" rel="noopener noreferrer" className="block mb-1.5">
+        <img src={url} alt="Imagem recebida" className="rounded-lg max-w-[260px] max-h-[320px] object-cover" />
+      </a>
+    );
+  }
+  if (mime.startsWith('audio/')) {
+    return <audio controls src={url} className="mb-1.5 max-w-[260px]" />;
+  }
+  if (mime.startsWith('video/')) {
+    return <video controls src={url} className="rounded-lg mb-1.5 max-w-[260px] max-h-[320px]" />;
+  }
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center gap-2 mb-1.5 px-3 py-2 rounded-lg bg-black/5 hover:bg-black/10 transition-colors text-sm"
+    >
+      <FileText size={16} className="flex-shrink-0" />
+      <span className="truncate">Documento</span>
+      <Download size={14} className="flex-shrink-0 opacity-60" />
+    </a>
+  );
+}
+
+const MEDIA_AUTO_LABELS = ['📷 Imagem', '🎤 Áudio', '🎥 Vídeo', '📄 Documento', '🌟 Figurinha'];
+
 function MessageBubble({ message }: { message: Message }) {
   const isIncoming = message.direction === 'entrada';
   const cfg = STATUS_CONFIG[message.status];
   const date = new Date(message.criado_em);
   const timeStr = `${date.toLocaleDateString('pt-BR')} ${date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+  const showTextContent = message.content && !(message.media_url && MEDIA_AUTO_LABELS.includes(message.content));
 
   if (isIncoming) {
     return (
       <div className="flex justify-start mb-3">
         <div className="max-w-[75%]">
           <div className="bg-white border border-slate-200 rounded-2xl rounded-tl-sm px-4 py-2.5 shadow-sm">
-            <p className="text-sm text-slate-800 whitespace-pre-wrap">{message.content || '(sem conteúdo)'}</p>
+            <MediaContent message={message} />
+            {(showTextContent || !message.media_url) && (
+              <p className="text-sm text-slate-800 whitespace-pre-wrap">{message.content || '(sem conteúdo)'}</p>
+            )}
           </div>
           <p className="text-xs text-slate-400 mt-1 px-1">{timeStr}</p>
         </div>
@@ -47,7 +85,10 @@ function MessageBubble({ message }: { message: Message }) {
               <span className="text-xs opacity-60 font-mono text-slate-700">{message.template_name}</span>
             </div>
           )}
-          <p className="text-sm whitespace-pre-wrap text-slate-900">{message.content || 'Template enviado'}</p>
+          <MediaContent message={message} />
+          {(showTextContent || !message.media_url) && (
+            <p className="text-sm whitespace-pre-wrap text-slate-900">{message.content || 'Template enviado'}</p>
+          )}
           {message.erro_msg && <p className="text-xs mt-1 text-red-600">{message.erro_msg}</p>}
         </div>
         <div className="flex items-center justify-end gap-1.5 mt-1 px-1">

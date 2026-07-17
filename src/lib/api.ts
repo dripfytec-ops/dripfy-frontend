@@ -24,4 +24,10 @@ api.interceptors.response.use(
   },
 );
 
+// O backend serve mídia (imagem/áudio/documento) fora do prefixo /api/v1.
+export function getMediaUrl(mediaPath: string): string {
+  const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+  return apiBase.replace(/\/api\/v1\/?$/, '') + mediaPath;
+}
+
 export default api;

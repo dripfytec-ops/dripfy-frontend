@@ -94,6 +94,8 @@ export interface Message {
   template_name?: string;
   direction: MessageDirection;
   content?: string;
+  media_url?: string | null;
+  media_mime_type?: string | null;
   status: MessageStatus;
   erro_msg?: string;
   criado_em: string;
