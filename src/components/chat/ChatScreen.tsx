@@ -6,6 +6,7 @@ import { Etiqueta, Lead, Vendedor } from '@/types';
 import ConversationList from './ConversationList';
 import ChatThread from './ChatThread';
 import ContactDetails from './ContactDetails';
+import NewConversationModal from './NewConversationModal';
 
 interface Props {
   etiquetas: Etiqueta[];
@@ -16,11 +17,19 @@ interface Props {
 export default function ChatScreen({ etiquetas, vendedores = [], isAdmin = false }: Props) {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [detailsCollapsed, setDetailsCollapsed] = useState(false);
+  const [showNewConversation, setShowNewConversation] = useState(false);
   const queryClient = useQueryClient();
 
   const handleUpdated = (updated: Lead) => {
     setSelectedLead(updated);
     queryClient.invalidateQueries({ queryKey: ['leads', 'conversas'] });
+  };
+
+  const handleConversationCreated = (lead: Lead) => {
+    setSelectedLead(lead);
+    setShowNewConversation(false);
+    queryClient.invalidateQueries({ queryKey: ['leads', 'conversas'] });
+    queryClient.invalidateQueries({ queryKey: ['messages', 'lead', lead.id_number] });
   };
 
   return (
@@ -29,6 +38,7 @@ export default function ChatScreen({ etiquetas, vendedores = [], isAdmin = false
         selectedLeadId={selectedLead?.id_number ?? null}
         onSelect={setSelectedLead}
         etiquetas={etiquetas}
+        onNewConversation={() => setShowNewConversation(true)}
       />
       <div className="flex-1 min-w-0">
         {selectedLead ? (
@@ -50,6 +60,9 @@ export default function ChatScreen({ etiquetas, vendedores = [], isAdmin = false
           collapsed={detailsCollapsed}
           onToggleCollapsed={() => setDetailsCollapsed((v) => !v)}
         />
+      )}
+      {showNewConversation && (
+        <NewConversationModal onClose={() => setShowNewConversation(false)} onCreated={handleConversationCreated} />
       )}
     </div>
   );

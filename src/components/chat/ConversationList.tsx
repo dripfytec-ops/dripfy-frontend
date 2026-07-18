@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Search } from 'lucide-react';
+import { Search, Plus } from 'lucide-react';
 import api from '@/lib/api';
 import { Lead, Etiqueta, PaginatedResponse } from '@/types';
 import { getInitials, getAvatarColor } from '@/lib/avatar';
@@ -10,6 +10,7 @@ interface Props {
   selectedLeadId: number | null;
   onSelect: (lead: Lead) => void;
   etiquetas: Etiqueta[];
+  onNewConversation: () => void;
 }
 
 function formatListTime(iso?: string): string {
@@ -21,7 +22,7 @@ function formatListTime(iso?: string): string {
   return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 }
 
-export default function ConversationList({ selectedLeadId, onSelect, etiquetas }: Props) {
+export default function ConversationList({ selectedLeadId, onSelect, etiquetas, onNewConversation }: Props) {
   const [search, setSearch] = useState('');
   const [filterEtiqueta, setFilterEtiqueta] = useState('');
 
@@ -43,6 +44,13 @@ export default function ConversationList({ selectedLeadId, onSelect, etiquetas }
       {/* Header */}
       <div className="px-4 py-3.5 flex items-center justify-between border-b border-gray-100 bg-white">
         <h2 className="text-base font-bold text-gray-900">Conversas</h2>
+        <button
+          onClick={onNewConversation}
+          title="Nova conversa"
+          className="p-1.5 text-gray-400 hover:text-primary hover:bg-blue-50 rounded-lg transition-colors"
+        >
+          <Plus size={17} />
+        </button>
       </div>
 
       {/* Search */}

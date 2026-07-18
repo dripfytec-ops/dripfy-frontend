@@ -12,6 +12,14 @@ export interface BmToken {
   criado_em: string;
 }
 
+export interface QuickReply {
+  id: string;
+  tenant_id: string;
+  titulo: string;
+  texto: string;
+  criado_em: string;
+}
+
 export interface Etiqueta {
   id: string;
   tenant_id: string;

@@ -2,9 +2,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Send, CheckCheck, Check, Eye, AlertCircle, MessageSquare, SendHorizonal, Clock, Trash2, PhoneIncoming, FileText, Download } from 'lucide-react';
+import { Send, CheckCheck, Check, Eye, AlertCircle, MessageSquare, SendHorizonal, Clock, Trash2, PhoneIncoming, FileText, Download, Zap } from 'lucide-react';
 import api, { getMediaUrl } from '@/lib/api';
-import { Lead, Message, MessageStatus, PaginatedResponse } from '@/types';
+import { Lead, Message, MessageStatus, PaginatedResponse, QuickReply } from '@/types';
 import { getInitials, getAvatarColor } from '@/lib/avatar';
 
 interface Props {
@@ -104,9 +104,28 @@ function MessageBubble({ message }: { message: Message }) {
 
 export default function ChatThread({ lead }: Props) {
   const [texto, setTexto] = useState('');
+  const [showQuickReplies, setShowQuickReplies] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const queryClient = useQueryClient();
+
+  const { data: quickReplies = [] } = useQuery<QuickReply[]>({
+    queryKey: ['quick-replies'],
+    queryFn: async () => (await api.get('/quick-replies')).data,
+    staleTime: 60_000,
+  });
+
+  const slashQuery = texto.startsWith('/') ? texto.slice(1).toLowerCase() : null;
+  const quickRepliesOpen = showQuickReplies || slashQuery !== null;
+  const filteredQuickReplies = slashQuery
+    ? quickReplies.filter((q) => q.titulo.toLowerCase().includes(slashQuery) || q.texto.toLowerCase().includes(slashQuery))
+    : quickReplies;
+
+  const applyQuickReply = (qr: QuickReply) => {
+    setTexto(qr.texto);
+    setShowQuickReplies(false);
+    textareaRef.current?.focus();
+  };
 
   const { data: messages, isLoading } = useQuery<Message[]>({
     queryKey: ['messages', 'lead', lead.id_number],
@@ -231,14 +250,41 @@ export default function ChatThread({ lead }: Props) {
       </div>
 
       {/* Reply box */}
-      <div className="border-t border-slate-200 bg-white flex-shrink-0">
+      <div className="border-t border-slate-200 bg-white flex-shrink-0 relative">
+        {quickRepliesOpen && (
+          <div className="absolute bottom-full left-3 right-3 mb-2 bg-white border border-slate-200 rounded-xl shadow-lg max-h-56 overflow-y-auto z-10">
+            {filteredQuickReplies.length === 0 ? (
+              <p className="text-xs text-slate-400 px-3 py-3">
+                {quickReplies.length === 0 ? 'Nenhuma resposta rápida cadastrada (Configurações → Respostas Rápidas).' : 'Nenhuma resposta encontrada.'}
+              </p>
+            ) : (
+              filteredQuickReplies.map((qr) => (
+                <button
+                  key={qr.id}
+                  onClick={() => applyQuickReply(qr)}
+                  className="w-full text-left px-3 py-2 hover:bg-slate-50 border-b border-slate-50 last:border-0"
+                >
+                  <p className="text-xs font-semibold text-slate-700">{qr.titulo}</p>
+                  <p className="text-xs text-slate-400 truncate">{qr.texto}</p>
+                </button>
+              ))
+            )}
+          </div>
+        )}
         <div className="flex items-end gap-2 p-3">
+          <button
+            onClick={() => setShowQuickReplies((v) => !v)}
+            title="Respostas rápidas"
+            className={`w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-full transition-colors ${quickRepliesOpen ? 'bg-amber-50 text-amber-600' : 'text-slate-400 hover:bg-slate-100'}`}
+          >
+            <Zap size={16} />
+          </button>
           <textarea
             ref={textareaRef}
             value={texto}
             onChange={(e) => setTexto(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Digite uma mensagem... (Enter para enviar)"
+            placeholder="Digite uma mensagem... (Enter para enviar, / pra respostas rápidas)"
             rows={1}
             className="flex-1 resize-none bg-slate-50 border border-slate-200 rounded-full px-4 py-2.5 text-sm outline-none focus:border-primary focus:bg-white transition-colors max-h-32 overflow-y-auto"
             style={{ minHeight: '42px' }}
