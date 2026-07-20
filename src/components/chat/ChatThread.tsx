@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Send, CheckCheck, Check, Eye, AlertCircle, MessageSquare, SendHorizonal, Clock, Trash2, PhoneIncoming, FileText, Download, Zap } from 'lucide-react';
+import { Send, CheckCheck, Check, AlertCircle, MessageSquare, SendHorizonal, Clock, Trash2, PhoneIncoming, FileText, Download, Zap } from 'lucide-react';
 import api, { getMediaUrl } from '@/lib/api';
 import { Lead, Message, MessageStatus, PaginatedResponse, QuickReply } from '@/types';
 import { getInitials, getAvatarColor } from '@/lib/avatar';
@@ -11,11 +11,11 @@ interface Props {
   lead: Lead;
 }
 
-const STATUS_CONFIG: Record<MessageStatus, { label: string; icon: React.ReactNode; color: string; bg: string }> = {
-  enviado:  { label: 'Enviado',  icon: <Check size={13} />,       color: 'text-slate-500', bg: 'bg-slate-100' },
-  entregue: { label: 'Entregue', icon: <CheckCheck size={13} />,  color: 'text-blue-500',  bg: 'bg-blue-50' },
-  lido:     { label: 'Lido',     icon: <Eye size={13} />,         color: 'text-green-500', bg: 'bg-green-50' },
-  erro:     { label: 'Erro',     icon: <AlertCircle size={13} />, color: 'text-red-500',   bg: 'bg-red-50' },
+const STATUS_CONFIG: Record<MessageStatus, { icon: React.ReactNode; color: string }> = {
+  enviado:  { icon: <Check size={15} />,     color: 'text-slate-400' },
+  entregue: { icon: <CheckCheck size={15} />, color: 'text-slate-400' },
+  lido:     { icon: <CheckCheck size={15} />, color: 'text-blue-500' },
+  erro:     { icon: <AlertCircle size={15} />, color: 'text-red-500' },
 };
 
 function MediaContent({ message }: { message: Message }) {
@@ -91,11 +91,9 @@ function MessageBubble({ message }: { message: Message }) {
           )}
           {message.erro_msg && <p className="text-xs mt-1 text-red-600">{message.erro_msg}</p>}
         </div>
-        <div className="flex items-center justify-end gap-1.5 mt-1 px-1">
+        <div className="flex items-center justify-end gap-1 mt-1 px-1">
           <span className="text-xs text-slate-400">{timeStr}</span>
-          <span className={`flex items-center gap-0.5 text-xs font-medium px-1.5 py-0.5 rounded-full ${cfg.bg} ${cfg.color}`}>
-            {cfg.icon} {cfg.label}
-          </span>
+          <span className={cfg.color}>{cfg.icon}</span>
         </div>
       </div>
     </div>

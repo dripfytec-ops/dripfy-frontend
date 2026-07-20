@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Save, MessageSquare, Wifi, Plus, Pencil, Trash2, X, Radio, Tag, Check, KeyRound, Copy, Zap } from 'lucide-react';
+import { Wifi, Plus, Pencil, Trash2, X, Radio, Tag, Check, KeyRound, Copy, Zap } from 'lucide-react';
 import Link from 'next/link';
 import api from '@/lib/api';
 import { BmToken, Etiqueta, QuickReply } from '@/types';
@@ -484,26 +484,6 @@ function BmTokensSection() {
 }
 
 export default function SettingsPage() {
-  const [chatwootOpen, setChatwootOpen] = useState(false);
-  const [chatwootForm, setChatwootForm] = useState({ chatwoot_url: '', chatwoot_api_token: '' });
-
-  const { data: chatwootConfig } = useQuery({
-    queryKey: ['chatwoot-config'],
-    queryFn: async () => { try { return (await api.get('/chatwoot/config')).data; } catch { return null; } },
-  });
-
-  useEffect(() => {
-    if (chatwootConfig) {
-      setChatwootForm({ chatwoot_url: chatwootConfig.chatwoot_url || '', chatwoot_api_token: '' });
-    }
-  }, [chatwootConfig]);
-
-  const saveChatwoot = useMutation({
-    mutationFn: () => api.post('/chatwoot/config', chatwootForm),
-    onSuccess: () => toast.success('Chatwoot salvo!'),
-    onError: () => toast.error('Erro ao salvar Chatwoot.'),
-  });
-
   return (
     <div className="p-6 max-w-3xl">
       <div className="mb-6">
@@ -535,58 +515,6 @@ export default function SettingsPage() {
       <QuickRepliesSection />
 
       <EtiquetasSection />
-
-      {/* Chatwoot */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Chatwoot — Atendimento Humano</h2>
-        </div>
-        <div className={`card p-4 border-l-4 ${chatwootConfig?.chatwoot_url ? 'border-l-green-400' : 'border-l-gray-300'}`}>
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${chatwootConfig?.chatwoot_url ? 'bg-purple-50' : 'bg-gray-100'}`}>
-                <MessageSquare size={18} className={chatwootConfig?.chatwoot_url ? 'text-purple-600' : 'text-gray-400'} />
-              </div>
-              <div>
-                <p className="font-semibold text-gray-900 text-sm">Chatwoot</p>
-                {chatwootConfig?.chatwoot_url
-                  ? <p className="text-xs text-gray-500 mt-0.5">{chatwootConfig.chatwoot_url}</p>
-                  : <p className="text-xs text-gray-400 mt-0.5">Não configurado</p>}
-                <p className="text-xs text-gray-400 mt-1">URL compartilhada entre todos os canais. Cada canal usa seu próprio Inbox ID.</p>
-              </div>
-            </div>
-            <button onClick={() => setChatwootOpen((v) => !v)} className="text-xs text-primary font-medium hover:underline">
-              {chatwootOpen ? 'Fechar' : chatwootConfig?.chatwoot_url ? 'Editar' : 'Configurar'}
-            </button>
-          </div>
-          {chatwootOpen && (
-            <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">URL do Chatwoot</label>
-                <input
-                  value={chatwootForm.chatwoot_url}
-                  onChange={(e) => setChatwootForm((p) => ({ ...p, chatwoot_url: e.target.value }))}
-                  className="input"
-                  placeholder="https://chatwoot.suaempresa.com"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">API Token</label>
-                <input
-                  type="password"
-                  value={chatwootForm.chatwoot_api_token}
-                  onChange={(e) => setChatwootForm((p) => ({ ...p, chatwoot_api_token: e.target.value }))}
-                  className="input font-mono"
-                  placeholder="••••••••"
-                />
-              </div>
-              <button onClick={() => saveChatwoot.mutate()} disabled={saveChatwoot.isPending} className="btn-primary flex items-center gap-2 text-sm">
-                <Save size={13} /> {saveChatwoot.isPending ? 'Salvando...' : 'Salvar Chatwoot'}
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
 
       {/* Futuros canais */}
       <div className="card p-4 bg-slate-50 border-dashed">
