@@ -162,6 +162,8 @@ export interface Lead {
   last_message_at?: string;
   last_message_preview?: string;
   unread_count: number;
+  origem_campanha_id?: string | null;
+  origem_campanha_nome?: string | null;
   criado_em: string;
 }
 

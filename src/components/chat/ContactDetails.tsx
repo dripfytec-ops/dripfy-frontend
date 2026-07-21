@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { PhoneIncoming, IdCard, Phone, CalendarDays, Tag, UserCircle2, Pencil, Check, X, ChevronRight, ChevronLeft } from 'lucide-react';
+import { PhoneIncoming, IdCard, Phone, CalendarDays, Tag, UserCircle2, Pencil, Check, X, ChevronRight, ChevronLeft, Megaphone } from 'lucide-react';
 import api from '@/lib/api';
 import { Lead, Etiqueta, Vendedor } from '@/types';
 import { getInitials, getAvatarColor } from '@/lib/avatar';
@@ -218,6 +218,9 @@ export default function ContactDetails({ lead, etiquetas, vendedores, isAdmin, o
             <Field icon={Tag} label="Etiqueta" value={lead.etiqueta?.nome || 'Sem etiqueta'} />
             <Field icon={UserCircle2} label="Vendedor" value={lead.vendedor?.nome || 'Sem vendedor'} />
           </>
+        )}
+        {lead.origem_campanha_nome && (
+          <Field icon={Megaphone} label="Veio da campanha" value={lead.origem_campanha_nome} />
         )}
         <Field icon={CalendarDays} label="Cadastrado em" value={formatDate(lead.criado_em)} />
       </div>

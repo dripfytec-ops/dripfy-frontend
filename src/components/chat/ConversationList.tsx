@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Search, Plus } from 'lucide-react';
 import api from '@/lib/api';
+import { useCampanhasDM } from '@/lib/dm-api';
 import { Lead, Etiqueta, PaginatedResponse } from '@/types';
 import { getInitials, getAvatarColor } from '@/lib/avatar';
 
@@ -25,19 +26,24 @@ function formatListTime(iso?: string): string {
 export default function ConversationList({ selectedLeadId, onSelect, etiquetas, onNewConversation }: Props) {
   const [search, setSearch] = useState('');
   const [filterEtiqueta, setFilterEtiqueta] = useState('');
+  const [filterCampanha, setFilterCampanha] = useState('');
+
+  const { data: campanhas = [] } = useCampanhasDM();
 
   const { data, isLoading } = useQuery<PaginatedResponse<Lead>>({
-    queryKey: ['leads', 'conversas', { search, filterEtiqueta }],
+    queryKey: ['leads', 'conversas', { search, filterEtiqueta, filterCampanha }],
     queryFn: async () => {
       const params: any = { sort: 'recent', limit: 50 };
       if (search) params.search = search;
       if (filterEtiqueta) params.etiqueta_id = filterEtiqueta;
+      if (filterCampanha) params.origem_campanha_id = filterCampanha;
       return (await api.get('/leads', { params })).data;
     },
     refetchInterval: 10000,
   });
 
   const leads = data?.data ?? [];
+  const campanhaSelecionada = campanhas.find((c) => c.id === filterCampanha);
 
   return (
     <div className="w-[340px] shrink-0 flex flex-col border-r border-gray-200 bg-white">
@@ -68,7 +74,7 @@ export default function ConversationList({ selectedLeadId, onSelect, etiquetas, 
 
       {/* Filter */}
       {etiquetas.length > 0 && (
-        <div className="px-3 py-2 border-b border-gray-100">
+        <div className="px-3 py-2 border-b border-gray-100 space-y-1.5">
           <select
             value={filterEtiqueta}
             onChange={(e) => setFilterEtiqueta(e.target.value)}
@@ -79,6 +85,18 @@ export default function ConversationList({ selectedLeadId, onSelect, etiquetas, 
               <option key={e.id} value={e.id}>{e.nome}</option>
             ))}
           </select>
+          {campanhas.length > 0 && (
+            <select
+              value={filterCampanha}
+              onChange={(e) => setFilterCampanha(e.target.value)}
+              className="input text-xs py-1.5"
+            >
+              <option value="">Todas as campanhas</option>
+              {campanhas.map((c) => (
+                <option key={c.id} value={c.id}>{c.nome}</option>
+              ))}
+            </select>
+          )}
         </div>
       )}
 
@@ -125,6 +143,15 @@ export default function ConversationList({ selectedLeadId, onSelect, etiquetas, 
           );
         })}
       </div>
+
+      {filterCampanha && (
+        <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50 text-center">
+          <p className="text-xs text-gray-500">
+            <span className="font-semibold text-gray-900">{data?.total ?? 0}</span> contato{data?.total === 1 ? '' : 's'} vindo{data?.total === 1 ? '' : 's'} de{' '}
+            <span className="font-medium">{campanhaSelecionada?.nome ?? 'campanha selecionada'}</span>
+          </p>
+        </div>
+      )}
     </div>
   );
 }
