@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Send, CheckCheck, Check, AlertCircle, MessageSquare, SendHorizonal, Clock, Trash2, PhoneIncoming, FileText, Download, Zap } from 'lucide-react';
+import { Send, CheckCheck, Check, AlertCircle, MessageSquare, SendHorizonal, Clock, Trash2, PhoneIncoming, FileText, Download, Zap, Mic, Square, X } from 'lucide-react';
 import api, { getMediaUrl } from '@/lib/api';
 import { Lead, Message, MessageStatus, PaginatedResponse, QuickReply } from '@/types';
 import { getInitials, getAvatarColor } from '@/lib/avatar';
@@ -103,8 +103,13 @@ function MessageBubble({ message }: { message: Message }) {
 export default function ChatThread({ lead }: Props) {
   const [texto, setTexto] = useState('');
   const [showQuickReplies, setShowQuickReplies] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const queryClient = useQueryClient();
 
   const { data: quickReplies = [] } = useQuery<QuickReply[]>({
@@ -134,6 +139,17 @@ export default function ChatThread({ lead }: Props) {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  useEffect(() => {
+    return () => {
+      if (mediaRecorderRef.current?.state === 'recording') {
+        mediaRecorderRef.current.onstop = null;
+        mediaRecorderRef.current.stop();
+        mediaRecorderRef.current.stream.getTracks().forEach((t) => t.stop());
+      }
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [lead.id_number]);
 
   const markReadMutation = useMutation({
     mutationFn: async () => (await api.patch(`/leads/${lead.id_number}/read`)).data,
@@ -189,6 +205,70 @@ export default function ChatThread({ lead }: Props) {
       handleSend();
     }
   };
+
+  const sendAudioMutation = useMutation({
+    mutationFn: async (blob: Blob) => {
+      const formData = new FormData();
+      formData.append('file', blob, `audio.${blob.type.includes('mp4') ? 'm4a' : 'webm'}`);
+      return (await api.post(`/messages/reply-media/${lead.id_number}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })).data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['messages', 'lead', lead.id_number] });
+      queryClient.invalidateQueries({ queryKey: ['leads', 'conversas'] });
+    },
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Erro ao enviar áudio.';
+      toast.error(msg);
+    },
+  });
+
+  const stopStream = () => {
+    mediaRecorderRef.current?.stream.getTracks().forEach((t) => t.stop());
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = null;
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      chunksRef.current = [];
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      recorder.start();
+      mediaRecorderRef.current = recorder;
+      setIsRecording(true);
+      setRecordingSeconds(0);
+      timerRef.current = setInterval(() => setRecordingSeconds((s) => s + 1), 1000);
+    } catch {
+      toast.error('Não foi possível acessar o microfone. Verifique a permissão do navegador.');
+    }
+  };
+
+  const stopAndSendRecording = () => {
+    const recorder = mediaRecorderRef.current;
+    if (!recorder) return;
+    recorder.onstop = () => {
+      const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' });
+      if (blob.size > 0) sendAudioMutation.mutate(blob);
+    };
+    recorder.stop();
+    stopStream();
+    setIsRecording(false);
+  };
+
+  const cancelRecording = () => {
+    const recorder = mediaRecorderRef.current;
+    if (recorder) {
+      recorder.onstop = null;
+      recorder.stop();
+    }
+    stopStream();
+    setIsRecording(false);
+  };
+
+  const formatRecordingTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
   const etiquetaNome = lead.etiqueta?.nome ?? lead.status_atual ?? 'Sem etiqueta';
   const etiquetaCor = lead.etiqueta?.cor_hexadecimal ?? '#6B7280';
@@ -269,40 +349,78 @@ export default function ChatThread({ lead }: Props) {
             )}
           </div>
         )}
-        <div className="flex items-end gap-2 p-3">
-          <button
-            onClick={() => setShowQuickReplies((v) => !v)}
-            title="Respostas rápidas"
-            className={`w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-full transition-colors ${quickRepliesOpen ? 'bg-amber-50 text-amber-600' : 'text-slate-400 hover:bg-slate-100'}`}
-          >
-            <Zap size={16} />
-          </button>
-          <textarea
-            ref={textareaRef}
-            value={texto}
-            onChange={(e) => setTexto(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Digite uma mensagem... (Enter para enviar, / pra respostas rápidas)"
-            rows={1}
-            className="flex-1 resize-none bg-slate-50 border border-slate-200 rounded-full px-4 py-2.5 text-sm outline-none focus:border-primary focus:bg-white transition-colors max-h-32 overflow-y-auto"
-            style={{ minHeight: '42px' }}
-            onInput={(e) => {
-              const el = e.currentTarget;
-              el.style.height = 'auto';
-              el.style.height = Math.min(el.scrollHeight, 128) + 'px';
-            }}
-          />
-          <button
-            onClick={handleSend}
-            disabled={!texto.trim() || sendMutation.isPending}
-            className="w-10 h-10 flex-shrink-0 flex items-center justify-center text-white rounded-full disabled:opacity-40 transition-opacity"
-            style={{ background: '#00a884' }}
-          >
-            {sendMutation.isPending
-              ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              : <SendHorizonal size={16} />}
-          </button>
-        </div>
+        {isRecording ? (
+          <div className="flex items-center gap-3 p-3">
+            <button
+              onClick={cancelRecording}
+              title="Cancelar gravação"
+              className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 transition-colors"
+            >
+              <X size={18} />
+            </button>
+            <div className="flex-1 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-full px-4 py-2.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+              <span className="text-sm text-slate-600">Gravando áudio... {formatRecordingTime(recordingSeconds)}</span>
+            </div>
+            <button
+              onClick={stopAndSendRecording}
+              title="Parar e enviar"
+              className="w-10 h-10 flex-shrink-0 flex items-center justify-center text-white rounded-full transition-opacity"
+              style={{ background: '#00a884' }}
+            >
+              <Square size={14} fill="white" />
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-end gap-2 p-3">
+            <button
+              onClick={() => setShowQuickReplies((v) => !v)}
+              title="Respostas rápidas"
+              className={`w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-full transition-colors ${quickRepliesOpen ? 'bg-amber-50 text-amber-600' : 'text-slate-400 hover:bg-slate-100'}`}
+            >
+              <Zap size={16} />
+            </button>
+            <textarea
+              ref={textareaRef}
+              value={texto}
+              onChange={(e) => setTexto(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Digite uma mensagem... (Enter para enviar, / pra respostas rápidas)"
+              rows={1}
+              className="flex-1 resize-none bg-slate-50 border border-slate-200 rounded-full px-4 py-2.5 text-sm outline-none focus:border-primary focus:bg-white transition-colors max-h-32 overflow-y-auto"
+              style={{ minHeight: '42px' }}
+              onInput={(e) => {
+                const el = e.currentTarget;
+                el.style.height = 'auto';
+                el.style.height = Math.min(el.scrollHeight, 128) + 'px';
+              }}
+            />
+            {texto.trim() ? (
+              <button
+                onClick={handleSend}
+                disabled={sendMutation.isPending}
+                className="w-10 h-10 flex-shrink-0 flex items-center justify-center text-white rounded-full disabled:opacity-40 transition-opacity"
+                style={{ background: '#00a884' }}
+              >
+                {sendMutation.isPending
+                  ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  : <SendHorizonal size={16} />}
+              </button>
+            ) : (
+              <button
+                onClick={startRecording}
+                disabled={sendAudioMutation.isPending}
+                title="Gravar áudio"
+                className="w-10 h-10 flex-shrink-0 flex items-center justify-center text-white rounded-full disabled:opacity-40 transition-opacity"
+                style={{ background: '#00a884' }}
+              >
+                {sendAudioMutation.isPending
+                  ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  : <Mic size={16} />}
+              </button>
+            )}
+          </div>
+        )}
         <div className="flex items-center gap-1.5 px-3 pb-2.5">
           <Clock size={10} className="text-slate-300" />
           <p className="text-[10px] text-slate-300">Texto livre apenas dentro de 24h após o cliente responder • Shift+Enter para quebrar linha</p>
