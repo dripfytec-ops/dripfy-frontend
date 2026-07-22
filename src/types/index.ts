@@ -53,6 +53,8 @@ export interface CampanhaDM {
   nome: string;
   canal_id: string | null;
   canal?: { id: string; nome: string } | null;
+  vendedor_id?: string | null;
+  vendedor?: { id: string; nome: string } | null;
   template_name: string;
   template_params: string[];
   header_image_url: string | null;

@@ -1,14 +1,15 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Papa from 'papaparse';
 import { X, Plus, Radio, Pause, Play, Pencil } from 'lucide-react';
+import api from '@/lib/api';
 import {
   useCanaisDM, useCampanhasDM, useCampanhaDM, useStatusCanaisDM,
   createCanalDM, updateCanalDM, createCampanhaDM, iniciarDisparoDM, pausarCampanhaDM,
   fetchTemplatesDM,
 } from '@/lib/dm-api';
-import { CanalDM, TemplateDM, StatusCampanhaDM } from '@/types';
+import { CanalDM, TemplateDM, StatusCampanhaDM, Vendedor } from '@/types';
 
 function formatarDataHora(iso: string | null): string {
   if (!iso) return '—';
@@ -220,8 +221,14 @@ function NovaCampanhaModal({ canais, onClose, onCreated }: {
   const [contatos, setContatos] = useState<ContatoCSV[]>([]);
   const [agendarPara, setAgendarPara] = useState('');
   const [disparar, setDisparar] = useState<'imediato' | 'agendado'>('imediato');
+  const [vendedorId, setVendedorId] = useState('');
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
+
+  const { data: vendedores = [] } = useQuery<Vendedor[]>({
+    queryKey: ['vendedores'],
+    queryFn: async () => { try { return (await api.get('/leads/vendedores')).data; } catch { return []; } },
+  });
 
   async function carregarTemplates(id: string) {
     setLoadingTemplates(true);
@@ -293,6 +300,7 @@ function NovaCampanhaModal({ canais, onClose, onCreated }: {
         template_params: [],
         header_image_url: headerImageUrl || null,
         agendado_para: disparar === 'agendado' ? agendarPara : null,
+        vendedor_id: vendedorId || null,
         contatos,
       });
       onCreated(campanha.id);
@@ -358,6 +366,18 @@ function NovaCampanhaModal({ canais, onClose, onCreated }: {
                   Não consegui carregar essa imagem. Confira se a URL é pública e aponta direto pro arquivo (jpg/png).
                 </p>
               )}
+            </div>
+          )}
+
+          {vendedores.length > 0 && (
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Vendedor exclusivo (opcional)</label>
+              <select value={vendedorId} onChange={(e) => setVendedorId(e.target.value)}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white outline-none focus:ring-2 focus:ring-blue-300">
+                <option value="">Nenhum — não atribuir automaticamente</option>
+                {vendedores.map((v) => <option key={v.id} value={v.id}>{v.nome}</option>)}
+              </select>
+              <p className="text-[11px] text-gray-400 mt-1">Todo contato gerado por essa campanha já nasce atribuído a esse vendedor no Chat.</p>
             </div>
           )}
 
@@ -431,6 +451,7 @@ function CampanhaDetalheModal({ campanhaId, onClose }: { campanhaId: string; onC
               <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${cfg.className}`}>{cfg.label}</span>
               <span className="text-xs text-gray-400">Template: {campanha.template_name}</span>
               <span className="text-xs text-gray-400">Canal: {campanha.canal?.nome || '—'}</span>
+              {campanha.vendedor?.nome && <span className="text-xs text-gray-400">Vendedor: {campanha.vendedor.nome}</span>}
               <span className="text-xs text-gray-400">Disparada em: {formatarDataHora(campanha.iniciado_em)}</span>
             </div>
           </div>
@@ -584,7 +605,10 @@ export default function DisparoMassaPage() {
                 const cfg = statusConfig[c.status] ?? statusConfig.rascunho;
                 return (
                   <tr key={c.id} onClick={() => setDetalheId(c.id)} className="hover:bg-gray-50 cursor-pointer transition-colors">
-                    <td className="px-5 py-3 font-medium text-gray-800">{c.nome}</td>
+                    <td className="px-5 py-3 font-medium text-gray-800">
+                      {c.nome}
+                      {c.vendedor?.nome && <span className="block text-[11px] font-normal text-gray-400">Vendedor: {c.vendedor.nome}</span>}
+                    </td>
                     <td className="px-5 py-3 text-gray-500">{c.canal?.nome || '—'}</td>
                     <td className="px-5 py-3 text-gray-500 whitespace-nowrap">{formatarDataHora(c.iniciado_em)}</td>
                     <td className="px-5 py-3"><span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${cfg.className}`}>{cfg.label}</span></td>
