@@ -105,6 +105,8 @@ export default function ChatThread({ lead }: Props) {
   const [showQuickReplies, setShowQuickReplies] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
+  const [recordedUrl, setRecordedUrl] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -148,7 +150,11 @@ export default function ChatThread({ lead }: Props) {
         mediaRecorderRef.current.stream.getTracks().forEach((t) => t.stop());
       }
       if (timerRef.current) clearInterval(timerRef.current);
+      if (recordedUrl) URL.revokeObjectURL(recordedUrl);
+      setRecordedBlob(null);
+      setRecordedUrl(null);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lead.id_number]);
 
   const markReadMutation = useMutation({
@@ -215,6 +221,7 @@ export default function ChatThread({ lead }: Props) {
       })).data;
     },
     onSuccess: () => {
+      discardRecording();
       queryClient.invalidateQueries({ queryKey: ['messages', 'lead', lead.id_number] });
       queryClient.invalidateQueries({ queryKey: ['leads', 'conversas'] });
     },
@@ -246,12 +253,17 @@ export default function ChatThread({ lead }: Props) {
     }
   };
 
-  const stopAndSendRecording = () => {
+  // Para a gravação e mostra um preview (ouvir / apagar / enviar) em vez de
+  // mandar direto — evita enviar um áudio errado ou vazio sem querer.
+  const stopRecording = () => {
     const recorder = mediaRecorderRef.current;
     if (!recorder) return;
     recorder.onstop = () => {
       const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' });
-      if (blob.size > 0) sendAudioMutation.mutate(blob);
+      if (blob.size > 0) {
+        setRecordedBlob(blob);
+        setRecordedUrl(URL.createObjectURL(blob));
+      }
     };
     recorder.stop();
     stopStream();
@@ -266,6 +278,16 @@ export default function ChatThread({ lead }: Props) {
     }
     stopStream();
     setIsRecording(false);
+  };
+
+  const discardRecording = () => {
+    if (recordedUrl) URL.revokeObjectURL(recordedUrl);
+    setRecordedBlob(null);
+    setRecordedUrl(null);
+  };
+
+  const confirmSendRecording = () => {
+    if (recordedBlob) sendAudioMutation.mutate(recordedBlob);
   };
 
   const formatRecordingTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
@@ -363,12 +385,38 @@ export default function ChatThread({ lead }: Props) {
               <span className="text-sm text-slate-600">Gravando áudio... {formatRecordingTime(recordingSeconds)}</span>
             </div>
             <button
-              onClick={stopAndSendRecording}
-              title="Parar e enviar"
+              onClick={stopRecording}
+              title="Parar gravação"
               className="w-10 h-10 flex-shrink-0 flex items-center justify-center text-white rounded-full transition-opacity"
               style={{ background: '#00a884' }}
             >
               <Square size={14} fill="white" />
+            </button>
+          </div>
+        ) : recordedBlob ? (
+          <div className="flex items-center gap-3 p-3">
+            <button
+              onClick={discardRecording}
+              disabled={sendAudioMutation.isPending}
+              title="Apagar gravação"
+              className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-full text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors disabled:opacity-40"
+            >
+              <Trash2 size={16} />
+            </button>
+            <div className="flex-1 flex items-center bg-slate-50 border border-slate-200 rounded-full px-3 py-1.5">
+              {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+              <audio controls src={recordedUrl ?? undefined} className="w-full h-9" />
+            </div>
+            <button
+              onClick={confirmSendRecording}
+              disabled={sendAudioMutation.isPending}
+              title="Enviar áudio"
+              className="w-10 h-10 flex-shrink-0 flex items-center justify-center text-white rounded-full disabled:opacity-40 transition-opacity"
+              style={{ background: '#00a884' }}
+            >
+              {sendAudioMutation.isPending
+                ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                : <SendHorizonal size={16} />}
             </button>
           </div>
         ) : (
