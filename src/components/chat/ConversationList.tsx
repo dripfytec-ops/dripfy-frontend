@@ -46,7 +46,7 @@ export default function ConversationList({ selectedLeadId, onSelect, etiquetas, 
   const campanhaSelecionada = campanhas.find((c) => c.id === filterCampanha);
 
   return (
-    <div className="w-[340px] shrink-0 flex flex-col border-r border-gray-200 bg-white">
+    <div className="w-[340px] shrink-0 flex flex-col border-r border-gray-200 bg-white min-h-0">
       {/* Header */}
       <div className="px-4 py-3.5 flex items-center justify-between border-b border-gray-100 bg-white">
         <h2 className="text-base font-bold text-gray-900">Conversas</h2>
@@ -101,7 +101,7 @@ export default function ConversationList({ selectedLeadId, onSelect, etiquetas, 
       )}
 
       {/* List */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto min-h-0">
         {isLoading && (
           <div className="flex justify-center py-8">
             <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />

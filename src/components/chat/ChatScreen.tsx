@@ -40,7 +40,7 @@ export default function ChatScreen({ etiquetas, vendedores = [], isAdmin = false
         etiquetas={etiquetas}
         onNewConversation={() => setShowNewConversation(true)}
       />
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 min-h-0">
         {selectedLead ? (
           <ChatThread lead={selectedLead} />
         ) : (

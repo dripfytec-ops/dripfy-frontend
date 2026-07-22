@@ -296,7 +296,7 @@ export default function ChatThread({ lead }: Props) {
   const etiquetaCor = lead.etiqueta?.cor_hexadecimal ?? '#6B7280';
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-h-0">
       {/* Header */}
       <div className="bg-white text-gray-900 px-4 py-3.5 flex items-center gap-3 flex-shrink-0 border-b border-gray-100">
         <div
@@ -330,7 +330,7 @@ export default function ChatThread({ lead }: Props) {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4" style={{ background: '#efeae2' }}>
+      <div className="flex-1 overflow-y-auto p-4 min-h-0" style={{ background: '#efeae2' }}>
         {isLoading && (
           <div className="flex justify-center py-8">
             <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />

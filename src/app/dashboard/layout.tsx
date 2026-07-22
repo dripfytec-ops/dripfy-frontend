@@ -56,7 +56,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (!user) return null;
 
   return (
-    <div className="min-h-screen flex bg-gray-50">
+    <div className="h-screen flex bg-gray-50 overflow-hidden">
       {/* Sidebar */}
       <aside
         className={`relative flex-shrink-0 flex flex-col transition-[width] duration-200 ${collapsed ? 'w-[68px]' : 'w-60'}`}
@@ -128,7 +128,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* Content */}
-      <main className="flex-1 overflow-auto flex flex-col min-w-0">
+      <main className="flex-1 flex flex-col min-w-0 min-h-0">
         <header className="h-14 bg-white border-b border-gray-100 flex items-center justify-between px-6 flex-shrink-0">
           <h2 className="text-sm font-semibold text-gray-700">
             {navItems.find((item) => item.href === pathname)?.label ?? 'Dripfy'}
@@ -137,7 +137,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}
           </p>
         </header>
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 overflow-auto min-h-0">
           {children}
         </div>
       </main>

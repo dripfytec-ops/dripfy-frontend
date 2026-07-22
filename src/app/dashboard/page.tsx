@@ -21,7 +21,7 @@ export default function LeadsPage() {
   });
 
   return (
-    <div className="p-6 h-full flex flex-col">
+    <div className="p-6 h-full flex flex-col min-h-0">
       <ChatScreen etiquetas={etiquetas} vendedores={vendedores} isAdmin={isAdmin} />
     </div>
   );

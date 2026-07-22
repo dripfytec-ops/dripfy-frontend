@@ -135,7 +135,7 @@ export default function ContactDetails({ lead, etiquetas, vendedores, isAdmin, o
   }
 
   return (
-    <div className="w-[280px] shrink-0 flex flex-col border-l border-gray-200 bg-white overflow-y-auto">
+    <div className="w-[280px] shrink-0 flex flex-col border-l border-gray-200 bg-white overflow-y-auto min-h-0">
       <div className="px-4 py-3.5 border-b border-gray-100 flex items-center justify-between">
         <div className="flex items-center gap-1">
           <button
