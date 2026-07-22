@@ -1,11 +1,13 @@
 'use client';
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { Search, Plus } from 'lucide-react';
 import api from '@/lib/api';
 import { useCampanhasDM } from '@/lib/dm-api';
 import { Lead, Etiqueta, PaginatedResponse } from '@/types';
 import { getInitials, getAvatarColor } from '@/lib/avatar';
+
+const PAGE_SIZE = 50;
 
 interface Props {
   selectedLeadId: number | null;
@@ -30,20 +32,37 @@ export default function ConversationList({ selectedLeadId, onSelect, etiquetas, 
 
   const { data: campanhas = [] } = useCampanhasDM();
 
-  const { data, isLoading } = useQuery<PaginatedResponse<Lead>>({
+  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: ['leads', 'conversas', { search, filterEtiqueta, filterCampanha }],
-    queryFn: async () => {
-      const params: any = { sort: 'recent', limit: 50 };
+    queryFn: async ({ pageParam }) => {
+      const params: any = { sort: 'recent', limit: PAGE_SIZE, page: pageParam };
       if (search) params.search = search;
       if (filterEtiqueta) params.etiqueta_id = filterEtiqueta;
       if (filterCampanha) params.origem_campanha_id = filterCampanha;
-      return (await api.get('/leads', { params })).data;
+      return (await api.get('/leads', { params })).data as PaginatedResponse<Lead>;
     },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => (lastPage.page < lastPage.totalPages ? lastPage.page + 1 : undefined),
     refetchInterval: 10000,
   });
 
-  const leads = data?.data ?? [];
+  // Conversas ativas (novas mensagens, campanhas) podem mudar de posição no
+  // "recent" entre páginas — dedup evita repetir o mesmo lead em duas.
+  const leads = useMemo(() => {
+    const all = data?.pages.flatMap((p) => p.data) ?? [];
+    const seen = new Set<number>();
+    return all.filter((l) => (seen.has(l.id_number) ? false : (seen.add(l.id_number), true)));
+  }, [data]);
+
+  const total = data?.pages[0]?.total ?? 0;
   const campanhaSelecionada = campanhas.find((c) => c.id === filterCampanha);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 150 && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  };
 
   return (
     <div className="w-[340px] shrink-0 flex flex-col border-r border-gray-200 bg-white min-h-0">
@@ -101,7 +120,7 @@ export default function ConversationList({ selectedLeadId, onSelect, etiquetas, 
       )}
 
       {/* List */}
-      <div className="flex-1 overflow-y-auto min-h-0">
+      <div className="flex-1 overflow-y-auto min-h-0" onScroll={handleScroll}>
         {isLoading && (
           <div className="flex justify-center py-8">
             <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -142,12 +161,20 @@ export default function ConversationList({ selectedLeadId, onSelect, etiquetas, 
             </button>
           );
         })}
+        {isFetchingNextPage && (
+          <div className="flex justify-center py-4">
+            <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          </div>
+        )}
+        {!isLoading && !hasNextPage && leads.length > 0 && (
+          <p className="text-center text-[11px] text-gray-300 py-3">{leads.length} de {total} conversas</p>
+        )}
       </div>
 
       {filterCampanha && (
         <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50 text-center">
           <p className="text-xs text-gray-500">
-            <span className="font-semibold text-gray-900">{data?.total ?? 0}</span> contato{data?.total === 1 ? '' : 's'} vindo{data?.total === 1 ? '' : 's'} de{' '}
+            <span className="font-semibold text-gray-900">{total}</span> contato{total === 1 ? '' : 's'} vindo{total === 1 ? '' : 's'} de{' '}
             <span className="font-medium">{campanhaSelecionada?.nome ?? 'campanha selecionada'}</span>
           </p>
         </div>
