@@ -33,7 +33,7 @@ export default function ChatScreen({ etiquetas, vendedores = [], isAdmin = false
   };
 
   return (
-    <div className="card flex overflow-hidden" style={{ height: 'calc(100vh - 276px)' }}>
+    <div className="card flex overflow-hidden flex-1 min-h-0">
       <ConversationList
         selectedLeadId={selectedLead?.id_number ?? null}
         onSelect={setSelectedLead}
