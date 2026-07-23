@@ -1,7 +1,7 @@
 'use client';
 import { useMemo, useState } from 'react';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, Plus, MailOpen, Mail } from 'lucide-react';
+import { Search, Plus } from 'lucide-react';
 import api from '@/lib/api';
 import { useCampanhasDM } from '@/lib/dm-api';
 import { Lead, Etiqueta, PaginatedResponse } from '@/types';
@@ -216,9 +216,8 @@ export default function ConversationList({ selectedLeadId, onSelect, etiquetas, 
                 toggleReadMutation.mutate({ id: contextMenu.leadId, lida: contextMenu.unread });
                 setContextMenu(null);
               }}
-              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left"
+              className="w-full px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left"
             >
-              {contextMenu.unread ? <MailOpen size={15} className="text-gray-400" /> : <Mail size={15} className="text-gray-400" />}
               {contextMenu.unread ? 'Marcar como lida' : 'Marcar como não lida'}
             </button>
           </div>
