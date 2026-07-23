@@ -211,7 +211,9 @@ export default function ConversationList({ selectedLeadId, onSelect, etiquetas, 
           >
             <button
               onClick={() => {
-                toggleReadMutation.mutate({ id: contextMenu.leadId, lida: !contextMenu.unread });
+                // contextMenu.unread = true → item mostra "Marcar como lida" → lida: true.
+                // contextMenu.unread = false → item mostra "Marcar como não lida" → lida: false.
+                toggleReadMutation.mutate({ id: contextMenu.leadId, lida: contextMenu.unread });
                 setContextMenu(null);
               }}
               className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left"
