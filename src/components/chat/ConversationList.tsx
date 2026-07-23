@@ -1,7 +1,7 @@
 'use client';
 import { useMemo, useState } from 'react';
-import { useInfiniteQuery } from '@tanstack/react-query';
-import { Search, Plus } from 'lucide-react';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Search, Plus, Mail, MailOpen } from 'lucide-react';
 import api from '@/lib/api';
 import { useCampanhasDM } from '@/lib/dm-api';
 import { Lead, Etiqueta, PaginatedResponse } from '@/types';
@@ -31,6 +31,13 @@ export default function ConversationList({ selectedLeadId, onSelect, etiquetas, 
   const [filterCampanha, setFilterCampanha] = useState('');
 
   const { data: campanhas = [] } = useCampanhasDM();
+  const queryClient = useQueryClient();
+
+  const toggleReadMutation = useMutation({
+    mutationFn: async ({ id, lida }: { id: number; lida: boolean }) =>
+      (await api.patch(`/leads/${id}/read`, { lida })).data,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['leads', 'conversas'] }),
+  });
 
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: ['leads', 'conversas', { search, filterEtiqueta, filterCampanha }],
@@ -135,10 +142,13 @@ export default function ConversationList({ selectedLeadId, onSelect, etiquetas, 
           const isActive = lead.id_number === selectedLeadId;
           const unread = lead.unread_count > 0;
           return (
-            <button
+            <div
               key={lead.id_number}
+              role="button"
+              tabIndex={0}
               onClick={() => onSelect(lead)}
-              className={`w-full flex items-center gap-3 px-4 py-3 text-left border-b border-gray-50 transition-colors ${isActive ? 'bg-primary/5' : 'hover:bg-gray-50'}`}
+              onKeyDown={(e) => { if (e.key === 'Enter') onSelect(lead); }}
+              className={`group w-full flex items-center gap-3 px-4 py-3 text-left border-b border-gray-50 transition-colors cursor-pointer ${isActive ? 'bg-primary/5' : 'hover:bg-gray-50'}`}
             >
               <span
                 className="relative rounded-full flex items-center justify-center text-white font-semibold shrink-0 w-11 h-11 text-sm"
@@ -158,7 +168,14 @@ export default function ConversationList({ selectedLeadId, onSelect, etiquetas, 
                   )}
                 </span>
               </span>
-            </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); toggleReadMutation.mutate({ id: lead.id_number, lida: !unread }); }}
+                title={unread ? 'Marcar como lida' : 'Marcar como não lida'}
+                className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1.5 text-gray-400 hover:text-primary hover:bg-blue-50 rounded-lg transition-opacity"
+              >
+                {unread ? <MailOpen size={15} /> : <Mail size={15} />}
+              </button>
+            </div>
           );
         })}
         {isFetchingNextPage && (

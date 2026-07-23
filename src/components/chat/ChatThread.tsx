@@ -23,6 +23,16 @@ function MediaContent({ message }: { message: Message }) {
   const url = getMediaUrl(message.media_url);
   const mime = message.media_mime_type || '';
 
+  // Figurinha do WhatsApp sempre vem como image/webp — exibe no tamanho e
+  // proporção originais (sem recorte), como uma figurinha de verdade e não
+  // uma foto grande.
+  if (mime === 'image/webp') {
+    return (
+      <a href={url} target="_blank" rel="noopener noreferrer" className="block mb-1.5">
+        <img src={url} alt="Figurinha" className="w-32 h-32 object-contain" />
+      </a>
+    );
+  }
   if (mime.startsWith('image/')) {
     return (
       <a href={url} target="_blank" rel="noopener noreferrer" className="block mb-1.5">
@@ -52,16 +62,20 @@ function MediaContent({ message }: { message: Message }) {
 
 const MEDIA_AUTO_LABELS = ['📷 Imagem', '🎤 Áudio', '🎥 Vídeo', '📄 Documento', '🌟 Figurinha'];
 
-function MessageBubble({ message }: { message: Message }) {
+function MessageBubble({ message, onDelete }: { message: Message; onDelete: (id: string) => void }) {
   const isIncoming = message.direction === 'entrada';
   const cfg = STATUS_CONFIG[message.status];
   const date = new Date(message.criado_em);
   const timeStr = `${date.toLocaleDateString('pt-BR')} ${date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
   const showTextContent = message.content && !(message.media_url && MEDIA_AUTO_LABELS.includes(message.content));
 
+  const handleDelete = () => {
+    if (confirm('Apagar esta mensagem?')) onDelete(message.id);
+  };
+
   if (isIncoming) {
     return (
-      <div className="flex justify-start mb-3">
+      <div className="flex justify-start mb-3 group">
         <div className="max-w-[75%]">
           <div className="bg-white border border-slate-200 rounded-2xl rounded-tl-sm px-4 py-2.5 shadow-sm">
             <MediaContent message={message} />
@@ -69,14 +83,23 @@ function MessageBubble({ message }: { message: Message }) {
               <p className="text-sm text-slate-800 whitespace-pre-wrap">{message.content || '(sem conteúdo)'}</p>
             )}
           </div>
-          <p className="text-xs text-slate-400 mt-1 px-1">{timeStr}</p>
+          <div className="flex items-center gap-1.5 mt-1 px-1">
+            <span className="text-xs text-slate-400">{timeStr}</span>
+            <button
+              onClick={handleDelete}
+              title="Apagar mensagem"
+              className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-opacity"
+            >
+              <Trash2 size={12} />
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex justify-end mb-3">
+    <div className="flex justify-end mb-3 group">
       <div className="max-w-[75%]">
         <div className="rounded-2xl rounded-tr-sm px-4 py-2.5 shadow-sm" style={{ background: '#d9fdd3' }}>
           {message.template_name && !message.content && (
@@ -91,7 +114,14 @@ function MessageBubble({ message }: { message: Message }) {
           )}
           {message.erro_msg && <p className="text-xs mt-1 text-red-600">{message.erro_msg}</p>}
         </div>
-        <div className="flex items-center justify-end gap-1 mt-1 px-1">
+        <div className="flex items-center justify-end gap-1.5 mt-1 px-1">
+          <button
+            onClick={handleDelete}
+            title="Apagar mensagem"
+            className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-opacity"
+          >
+            <Trash2 size={12} />
+          </button>
           <span className="text-xs text-slate-400">{timeStr}</span>
           <span className={cfg.color}>{cfg.icon}</span>
         </div>
@@ -192,6 +222,14 @@ export default function ChatThread({ lead }: Props) {
     if (!confirm('Apagar todo o histórico de mensagens deste lead?')) return;
     deleteMutation.mutate();
   };
+
+  const deleteMessageMutation = useMutation({
+    mutationFn: async (messageId: string) => (await api.delete(`/messages/${messageId}`)).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['messages', 'lead', lead.id_number] });
+    },
+    onError: () => toast.error('Erro ao apagar mensagem.'),
+  });
 
   const sendMutation = useMutation({
     mutationFn: async (msg: string) => (await api.post(`/messages/reply/${lead.id_number}`, { texto: msg })).data,
@@ -352,7 +390,7 @@ export default function ChatThread({ lead }: Props) {
           </div>
         )}
         {messages?.map((msg) => (
-          <MessageBubble key={msg.id} message={msg} />
+          <MessageBubble key={msg.id} message={msg} onDelete={(id) => deleteMessageMutation.mutate(id)} />
         ))}
         <div ref={messagesEndRef} />
       </div>
