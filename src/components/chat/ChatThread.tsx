@@ -1,6 +1,6 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, InfiniteData } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Send, CheckCheck, Check, AlertCircle, MessageSquare, SendHorizonal, Clock, Trash2, PhoneIncoming, FileText, Download, Zap, Mic, Square, X } from 'lucide-react';
 import api, { getMediaUrl } from '@/lib/api';
@@ -164,9 +164,17 @@ export default function ChatThread({ lead }: Props) {
   useEffect(() => {
     if (!lead.unread_count) return;
     markReadMutation.mutate();
-    queryClient.setQueriesData<PaginatedResponse<Lead>>({ queryKey: ['leads', 'conversas'] }, (old) => {
+    // A lista de Conversas usa useInfiniteQuery — o cache guarda { pages, pageParams },
+    // não um PaginatedResponse direto, então precisa mapear página por página.
+    queryClient.setQueriesData<InfiniteData<PaginatedResponse<Lead>>>({ queryKey: ['leads', 'conversas'] }, (old) => {
       if (!old) return old;
-      return { ...old, data: old.data.map((l) => (l.id_number === lead.id_number ? { ...l, unread_count: 0 } : l)) };
+      return {
+        ...old,
+        pages: old.pages.map((page) => ({
+          ...page,
+          data: page.data.map((l) => (l.id_number === lead.id_number ? { ...l, unread_count: 0 } : l)),
+        })),
+      };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lead.id_number]);
