@@ -262,12 +262,17 @@ export default function ConversationList({ selectedLeadId, onSelect, etiquetas, 
                     <span className="w-2 h-2 rounded-full shrink-0" style={{ background: '#25D366' }} />
                   )}
                 </span>
-                {lead.etiqueta && (
-                  <span
-                    className="mt-1 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium"
-                    style={{ backgroundColor: lead.etiqueta.cor_hexadecimal + '20', color: lead.etiqueta.cor_hexadecimal }}
-                  >
-                    {lead.etiqueta.nome}
+                {lead.etiquetas.length > 0 && (
+                  <span className="flex flex-wrap items-center gap-1 mt-1">
+                    {lead.etiquetas.map((et) => (
+                      <span
+                        key={et.id}
+                        className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium"
+                        style={{ backgroundColor: et.cor_hexadecimal + '20', color: et.cor_hexadecimal }}
+                      >
+                        {et.nome}
+                      </span>
+                    ))}
                   </span>
                 )}
               </span>

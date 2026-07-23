@@ -155,8 +155,7 @@ export interface Lead {
   nome: string;
   telefone: string;
   status_atual: LeadStatus;
-  etiqueta_id?: string;
-  etiqueta?: Etiqueta;
+  etiquetas: Etiqueta[];
   vendedor_id?: string;
   vendedor?: Vendedor;
   disparado: boolean;
@@ -166,6 +165,13 @@ export interface Lead {
   unread_count: number;
   origem_campanha_id?: string | null;
   origem_campanha_nome?: string | null;
+  criado_em: string;
+}
+
+export interface LeadActivity {
+  id: string;
+  lead_id: number;
+  texto: string;
   criado_em: string;
 }
 

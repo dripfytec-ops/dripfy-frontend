@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { PhoneIncoming, IdCard, Phone, CalendarDays, Tag, UserCircle2, Pencil, Check, X, ChevronRight, ChevronLeft, Megaphone } from 'lucide-react';
 import api from '@/lib/api';
@@ -51,19 +52,20 @@ function EditField({ icon: Icon, label, children }: { icon: React.ElementType; l
 }
 
 export default function ContactDetails({ lead, etiquetas, vendedores, isAdmin, onUpdated, collapsed, onToggleCollapsed }: Props) {
+  const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [nome, setNome] = useState(lead.nome);
   const [telefone, setTelefone] = useState(lead.telefone);
   const [cpf, setCpf] = useState(lead.cpf || '');
-  const [etiquetaId, setEtiquetaId] = useState(lead.etiqueta_id || '');
+  const [etiquetaIds, setEtiquetaIds] = useState(lead.etiquetas.map((e) => e.id));
   const [vendedorId, setVendedorId] = useState(lead.vendedor_id || '');
 
   useEffect(() => {
     setNome(lead.nome);
     setTelefone(lead.telefone);
     setCpf(lead.cpf || '');
-    setEtiquetaId(lead.etiqueta_id || '');
+    setEtiquetaIds(lead.etiquetas.map((e) => e.id));
     setVendedorId(lead.vendedor_id || '');
     setEditing(false);
   }, [lead.id_number]);
@@ -73,10 +75,16 @@ export default function ContactDetails({ lead, etiquetas, vendedores, isAdmin, o
     setNome(lead.nome);
     setTelefone(lead.telefone);
     setCpf(lead.cpf || '');
-    setEtiquetaId(lead.etiqueta_id || '');
+    setEtiquetaIds(lead.etiquetas.map((e) => e.id));
     setVendedorId(lead.vendedor_id || '');
     setEditing(false);
   };
+
+  const toggleEtiqueta = (id: string) => {
+    setEtiquetaIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  const sameSet = (a: string[], b: string[]) => a.length === b.length && [...a].sort().every((v, i) => v === [...b].sort()[i]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -84,23 +92,28 @@ export default function ContactDetails({ lead, etiquetas, vendedores, isAdmin, o
       const calls: Promise<any>[] = [
         api.patch(`/leads/${lead.id_number}`, { nome, telefone, cpf: cpf || null }),
       ];
-      if (etiquetaId !== (lead.etiqueta_id || '')) {
-        calls.push(api.patch(`/leads/${lead.id_number}/etiqueta`, { etiqueta_id: etiquetaId }));
+      const etiquetasMudaram = !sameSet(etiquetaIds, lead.etiquetas.map((e) => e.id));
+      if (etiquetasMudaram) {
+        calls.push(api.put(`/leads/${lead.id_number}/etiquetas`, { etiqueta_ids: etiquetaIds }));
       }
-      if (isAdmin && vendedorId !== (lead.vendedor_id || '')) {
+      const vendedorMudou = isAdmin && vendedorId !== (lead.vendedor_id || '');
+      if (vendedorMudou) {
         calls.push(api.patch(`/leads/${lead.id_number}/vendedor`, { vendedor_id: vendedorId || null }));
       }
       await Promise.all(calls);
 
-      const novaEtiqueta = etiquetas.find((e) => e.id === etiquetaId);
+      if (etiquetasMudaram || vendedorMudou) {
+        queryClient.invalidateQueries({ queryKey: ['leads', 'activities', lead.id_number] });
+      }
+
+      const novasEtiquetas = etiquetas.filter((e) => etiquetaIds.includes(e.id));
       const novoVendedor = vendedores.find((v) => v.id === vendedorId);
       onUpdated({
         ...lead,
         nome,
         telefone,
         cpf: cpf || undefined,
-        etiqueta_id: etiquetaId || undefined,
-        etiqueta: novaEtiqueta,
+        etiquetas: novasEtiquetas,
         vendedor_id: vendedorId || undefined,
         vendedor: novoVendedor,
       });
@@ -196,11 +209,26 @@ export default function ContactDetails({ lead, etiquetas, vendedores, isAdmin, o
             <EditField icon={IdCard} label="CPF">
               <input value={cpf} onChange={(e) => setCpf(e.target.value)} className="input mt-1 text-sm" placeholder="Não informado" />
             </EditField>
-            <EditField icon={Tag} label="Etiqueta">
-              <select value={etiquetaId} onChange={(e) => setEtiquetaId(e.target.value)} className="input mt-1 text-sm">
-                <option value="">Sem etiqueta</option>
-                {etiquetas.map((et) => <option key={et.id} value={et.id}>{et.nome}</option>)}
-              </select>
+            <EditField icon={Tag} label="Etiquetas">
+              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                {etiquetas.length === 0 && <p className="text-xs text-gray-400">Nenhuma etiqueta cadastrada.</p>}
+                {etiquetas.map((et) => {
+                  const selected = etiquetaIds.includes(et.id);
+                  return (
+                    <button
+                      key={et.id}
+                      type="button"
+                      onClick={() => toggleEtiqueta(et.id)}
+                      className="px-2 py-1 rounded-full text-xs font-medium border transition-colors"
+                      style={selected
+                        ? { backgroundColor: et.cor_hexadecimal + '20', color: et.cor_hexadecimal, borderColor: et.cor_hexadecimal + '60' }
+                        : { backgroundColor: 'transparent', color: '#9CA3AF', borderColor: '#E5E7EB' }}
+                    >
+                      {et.nome}
+                    </button>
+                  );
+                })}
+              </div>
             </EditField>
             {isAdmin && (
               <EditField icon={UserCircle2} label="Vendedor">
@@ -215,7 +243,27 @@ export default function ContactDetails({ lead, etiquetas, vendedores, isAdmin, o
           <>
             <Field icon={Phone} label="Telefone" value={lead.telefone} />
             <Field icon={IdCard} label="CPF" value={lead.cpf ? formatCpf(lead.cpf) : 'Não informado'} />
-            <Field icon={Tag} label="Etiqueta" value={lead.etiqueta?.nome || 'Sem etiqueta'} />
+            <div className="flex items-start gap-2.5">
+              <Tag size={15} className="text-gray-400 mt-0.5 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[11px] text-gray-400">Etiquetas</p>
+                {lead.etiquetas.length === 0 ? (
+                  <p className="text-sm text-gray-800">Sem etiqueta</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1 mt-0.5">
+                    {lead.etiquetas.map((et) => (
+                      <span
+                        key={et.id}
+                        className="px-2 py-0.5 rounded-full text-xs font-medium"
+                        style={{ backgroundColor: et.cor_hexadecimal + '20', color: et.cor_hexadecimal }}
+                      >
+                        {et.nome}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
             <Field icon={UserCircle2} label="Vendedor" value={lead.vendedor?.nome || 'Sem vendedor'} />
           </>
         )}

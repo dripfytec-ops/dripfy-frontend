@@ -1,14 +1,33 @@
 'use client';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient, InfiniteData } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Send, CheckCheck, Check, AlertCircle, MessageSquare, SendHorizonal, Clock, Trash2, PhoneIncoming, FileText, Download, Zap, Mic, Square, X } from 'lucide-react';
+import { Send, CheckCheck, Check, AlertCircle, MessageSquare, SendHorizonal, Clock, Trash2, PhoneIncoming, FileText, Download, Zap, Mic, Square, X, UserPlus } from 'lucide-react';
 import api, { getMediaUrl } from '@/lib/api';
-import { Lead, Message, MessageStatus, PaginatedResponse, QuickReply } from '@/types';
+import { auth } from '@/lib/auth';
+import { Lead, LeadActivity, Message, MessageStatus, PaginatedResponse, QuickReply } from '@/types';
 import { getInitials, getAvatarColor } from '@/lib/avatar';
 
 interface Props {
   lead: Lead;
+  onUpdated?: (lead: Lead) => void;
+}
+
+type ThreadItem =
+  | { kind: 'message'; criado_em: string; data: Message }
+  | { kind: 'activity'; criado_em: string; data: LeadActivity };
+
+function ActivityNote({ activity }: { activity: LeadActivity }) {
+  const date = new Date(activity.criado_em);
+  const timeStr = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  return (
+    <div className="flex justify-center mb-3">
+      <div className="max-w-[85%] bg-slate-800/5 border border-slate-800/10 rounded-full px-3 py-1.5 text-center">
+        <span className="text-xs text-slate-500">{activity.texto}</span>
+        <span className="text-[10px] text-slate-400 ml-1.5">{timeStr}</span>
+      </div>
+    </div>
+  );
 }
 
 const STATUS_CONFIG: Record<MessageStatus, { icon: React.ReactNode; color: string }> = {
@@ -130,7 +149,8 @@ function MessageBubble({ message, onDelete }: { message: Message; onDelete: (id:
   );
 }
 
-export default function ChatThread({ lead }: Props) {
+export default function ChatThread({ lead, onUpdated }: Props) {
+  const currentUser = auth.getUser();
   const [texto, setTexto] = useState('');
   const [showQuickReplies, setShowQuickReplies] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -168,9 +188,23 @@ export default function ChatThread({ lead }: Props) {
     refetchInterval: 8000,
   });
 
+  const { data: activities } = useQuery<LeadActivity[]>({
+    queryKey: ['leads', 'activities', lead.id_number],
+    queryFn: async () => (await api.get(`/leads/${lead.id_number}/activities`)).data,
+    refetchInterval: 8000,
+  });
+
+  const timeline = useMemo<ThreadItem[]>(() => {
+    const items: ThreadItem[] = [
+      ...(messages ?? []).map((m) => ({ kind: 'message' as const, criado_em: m.criado_em, data: m })),
+      ...(activities ?? []).map((a) => ({ kind: 'activity' as const, criado_em: a.criado_em, data: a })),
+    ];
+    return items.sort((a, b) => new Date(a.criado_em).getTime() - new Date(b.criado_em).getTime());
+  }, [messages, activities]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [timeline.length]);
 
   useEffect(() => {
     return () => {
@@ -216,6 +250,17 @@ export default function ChatThread({ lead }: Props) {
       toast.success('Histórico apagado.');
     },
     onError: () => toast.error('Erro ao apagar histórico.'),
+  });
+
+  const assignToSelfMutation = useMutation({
+    mutationFn: async () => (await api.patch(`/leads/${lead.id_number}/assign-me`)).data as Lead,
+    onSuccess: (updated) => {
+      queryClient.invalidateQueries({ queryKey: ['leads', 'activities', lead.id_number] });
+      queryClient.invalidateQueries({ queryKey: ['leads', 'conversas'] });
+      onUpdated?.(updated);
+      toast.success('Conversa atribuída a você!');
+    },
+    onError: (error: any) => toast.error(error?.response?.data?.message || 'Erro ao atribuir conversa.'),
   });
 
   const handleDelete = () => {
@@ -338,8 +383,7 @@ export default function ChatThread({ lead }: Props) {
 
   const formatRecordingTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
-  const etiquetaNome = lead.etiqueta?.nome ?? lead.status_atual ?? 'Sem etiqueta';
-  const etiquetaCor = lead.etiqueta?.cor_hexadecimal ?? '#6B7280';
+  const isMine = !!currentUser && lead.vendedor_id === currentUser.id;
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -361,9 +405,30 @@ export default function ChatThread({ lead }: Props) {
               <PhoneIncoming size={11} /> Cliente iniciou
             </span>
           )}
-          <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: etiquetaCor + '20', color: etiquetaCor }}>
-            {etiquetaNome}
-          </span>
+          <button
+            onClick={() => assignToSelfMutation.mutate()}
+            disabled={isMine || assignToSelfMutation.isPending}
+            title={isMine ? 'Esta conversa já é sua' : 'Atribuir esta conversa a mim'}
+            className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium transition-colors ${
+              isMine ? 'bg-gray-50 text-gray-400 cursor-default' : 'bg-primary/10 text-primary hover:bg-primary/20'
+            } disabled:opacity-60`}
+          >
+            <UserPlus size={12} />
+            {isMine ? 'Atribuída a mim' : 'Atribuir a mim'}
+          </button>
+          {lead.etiquetas.length > 0 && (
+            <div className="flex items-center gap-1">
+              {lead.etiquetas.map((et) => (
+                <span
+                  key={et.id}
+                  className="text-xs px-2 py-0.5 rounded-full font-medium"
+                  style={{ backgroundColor: et.cor_hexadecimal + '20', color: et.cor_hexadecimal }}
+                >
+                  {et.nome}
+                </span>
+              ))}
+            </div>
+          )}
           <button
             onClick={handleDelete}
             disabled={deleteMutation.isPending}
@@ -382,15 +447,17 @@ export default function ChatThread({ lead }: Props) {
             <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
         )}
-        {!isLoading && !messages?.length && (
+        {!isLoading && !timeline.length && (
           <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-2">
             <MessageSquare size={40} className="opacity-30" />
             <p className="text-sm">Nenhuma mensagem ainda</p>
             <p className="text-xs text-center text-slate-400">Envie uma campanha ou aguarde o lead entrar em contato</p>
           </div>
         )}
-        {messages?.map((msg) => (
-          <MessageBubble key={msg.id} message={msg} onDelete={(id) => deleteMessageMutation.mutate(id)} />
+        {timeline.map((item) => (
+          item.kind === 'message'
+            ? <MessageBubble key={item.data.id} message={item.data} onDelete={(id) => deleteMessageMutation.mutate(id)} />
+            : <ActivityNote key={item.data.id} activity={item.data} />
         ))}
         <div ref={messagesEndRef} />
       </div>

@@ -44,7 +44,7 @@ export default function ChatScreen({ etiquetas, vendedores = [], isAdmin = false
       />
       <div className="flex-1 min-w-0 min-h-0">
         {selectedLead ? (
-          <ChatThread lead={selectedLead} />
+          <ChatThread lead={selectedLead} onUpdated={handleUpdated} />
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-2">
             <MessageCircle size={40} className="opacity-30" />
