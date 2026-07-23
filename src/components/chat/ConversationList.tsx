@@ -1,10 +1,11 @@
 'use client';
 import { useMemo, useState } from 'react';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, Plus } from 'lucide-react';
+import { Search, Plus, Filter, User as UserIcon, X } from 'lucide-react';
 import api from '@/lib/api';
 import { useCampanhasDM } from '@/lib/dm-api';
-import { Lead, Etiqueta, PaginatedResponse } from '@/types';
+import { auth } from '@/lib/auth';
+import { Lead, Etiqueta, Vendedor, PaginatedResponse } from '@/types';
 import { getInitials, getAvatarColor } from '@/lib/avatar';
 
 const PAGE_SIZE = 50;
@@ -20,6 +21,8 @@ interface Props {
   selectedLeadId: number | null;
   onSelect: (lead: Lead) => void;
   etiquetas: Etiqueta[];
+  vendedores?: Vendedor[];
+  isAdmin?: boolean;
   onNewConversation: () => void;
 }
 
@@ -32,12 +35,16 @@ function formatListTime(iso?: string): string {
   return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 }
 
-export default function ConversationList({ selectedLeadId, onSelect, etiquetas, onNewConversation }: Props) {
+export default function ConversationList({ selectedLeadId, onSelect, etiquetas, vendedores = [], isAdmin = false, onNewConversation }: Props) {
   const [search, setSearch] = useState('');
   const [filterEtiqueta, setFilterEtiqueta] = useState('');
   const [filterCampanha, setFilterCampanha] = useState('');
+  const [filterVendedor, setFilterVendedor] = useState('');
+  const [quickTab, setQuickTab] = useState<'mine' | 'all'>('all');
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
 
+  const currentUser = auth.getUser();
   const { data: campanhas = [] } = useCampanhasDM();
   const queryClient = useQueryClient();
 
@@ -47,13 +54,16 @@ export default function ConversationList({ selectedLeadId, onSelect, etiquetas, 
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['leads', 'conversas'] }),
   });
 
+  const effectiveVendedorId = quickTab === 'mine' ? currentUser?.id : filterVendedor;
+
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
-    queryKey: ['leads', 'conversas', { search, filterEtiqueta, filterCampanha }],
+    queryKey: ['leads', 'conversas', { search, filterEtiqueta, filterCampanha, effectiveVendedorId }],
     queryFn: async ({ pageParam }) => {
       const params: any = { sort: 'recent', limit: PAGE_SIZE, page: pageParam };
       if (search) params.search = search;
       if (filterEtiqueta) params.etiqueta_id = filterEtiqueta;
       if (filterCampanha) params.origem_campanha_id = filterCampanha;
+      if (effectiveVendedorId) params.vendedor_id = effectiveVendedorId;
       return (await api.get('/leads', { params })).data as PaginatedResponse<Lead>;
     },
     initialPageParam: 1,
@@ -71,12 +81,19 @@ export default function ConversationList({ selectedLeadId, onSelect, etiquetas, 
 
   const total = data?.pages[0]?.total ?? 0;
   const campanhaSelecionada = campanhas.find((c) => c.id === filterCampanha);
+  const activeFilterCount = [filterEtiqueta, filterCampanha, filterVendedor].filter(Boolean).length;
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const el = e.currentTarget;
     if (el.scrollHeight - el.scrollTop - el.clientHeight < 150 && hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
     }
+  };
+
+  const clearFilters = () => {
+    setFilterEtiqueta('');
+    setFilterCampanha('');
+    setFilterVendedor('');
   };
 
   return (
@@ -106,31 +123,89 @@ export default function ConversationList({ selectedLeadId, onSelect, etiquetas, 
         </div>
       </div>
 
-      {/* Filter */}
-      {etiquetas.length > 0 && (
-        <div className="px-3 py-2 border-b border-gray-100 space-y-1.5">
-          <select
-            value={filterEtiqueta}
-            onChange={(e) => setFilterEtiqueta(e.target.value)}
-            className="input text-xs py-1.5"
+      {/* Tabs + filter icon */}
+      <div className="px-3 py-2 border-b border-gray-100 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
+          <button
+            onClick={() => setQuickTab('mine')}
+            className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${quickTab === 'mine' ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
           >
-            <option value="">Todos os status</option>
-            {etiquetas.map((e) => (
-              <option key={e.id} value={e.id}>{e.nome}</option>
-            ))}
-          </select>
-          {campanhas.length > 0 && (
-            <select
-              value={filterCampanha}
-              onChange={(e) => setFilterCampanha(e.target.value)}
-              className="input text-xs py-1.5"
-            >
-              <option value="">Todas as campanhas</option>
-              {campanhas.map((c) => (
-                <option key={c.id} value={c.id}>{c.nome}</option>
-              ))}
-            </select>
+            Minhas
+          </button>
+          <button
+            onClick={() => setQuickTab('all')}
+            className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${quickTab === 'all' ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            Todas
+          </button>
+        </div>
+        {(etiquetas.length > 0 || campanhas.length > 0) && (
+          <button
+            onClick={() => setShowFilterPanel((v) => !v)}
+            title="Filtrar conversas"
+            className={`relative p-1.5 rounded-lg transition-colors ${showFilterPanel || activeFilterCount > 0 ? 'text-primary bg-blue-50' : 'text-gray-400 hover:text-primary hover:bg-blue-50'}`}
+          >
+            <Filter size={16} />
+            {activeFilterCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-primary text-white text-[9px] flex items-center justify-center">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+        )}
+      </div>
+
+      {/* Filter panel */}
+      {showFilterPanel && (
+        <div className="px-3 py-3 border-b border-gray-100 bg-gray-50 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-gray-700">Filtrar conversas</span>
+            <button onClick={() => setShowFilterPanel(false)} className="text-gray-400 hover:text-gray-600">
+              <X size={14} />
+            </button>
+          </div>
+          {etiquetas.length > 0 && (
+            <div>
+              <label className="text-[11px] text-gray-500 block mb-1">Etiqueta</label>
+              <select value={filterEtiqueta} onChange={(e) => setFilterEtiqueta(e.target.value)} className="input text-xs py-1.5">
+                <option value="">Todas as etiquetas</option>
+                {etiquetas.map((e) => (
+                  <option key={e.id} value={e.id}>{e.nome}</option>
+                ))}
+              </select>
+            </div>
           )}
+          {campanhas.length > 0 && (
+            <div>
+              <label className="text-[11px] text-gray-500 block mb-1">Campanha</label>
+              <select value={filterCampanha} onChange={(e) => setFilterCampanha(e.target.value)} className="input text-xs py-1.5">
+                <option value="">Todas as campanhas</option>
+                {campanhas.map((c) => (
+                  <option key={c.id} value={c.id}>{c.nome}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          {isAdmin && vendedores.length > 0 && (
+            <div>
+              <label className="text-[11px] text-gray-500 block mb-1">Atendente</label>
+              <select
+                value={filterVendedor}
+                onChange={(e) => setFilterVendedor(e.target.value)}
+                disabled={quickTab === 'mine'}
+                className="input text-xs py-1.5 disabled:opacity-50"
+              >
+                <option value="">Todos os atendentes</option>
+                {vendedores.map((v) => (
+                  <option key={v.id} value={v.id}>{v.nome}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div className="flex items-center justify-between pt-1">
+            <button onClick={clearFilters} className="text-xs text-gray-500 hover:text-gray-700">Limpar filtros</button>
+            <button onClick={() => setShowFilterPanel(false)} className="btn-primary text-xs px-3 py-1.5">Aplicar filtros</button>
+          </div>
         </div>
       )}
 
@@ -169,9 +244,17 @@ export default function ConversationList({ selectedLeadId, onSelect, etiquetas, 
                 {getInitials(lead.nome)}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="flex items-center justify-between gap-2">
+                <span className="flex items-start justify-between gap-2">
                   <span className="text-sm font-semibold text-gray-900 truncate">{lead.nome}</span>
-                  <span className="text-[11px] text-gray-400 shrink-0">{formatListTime(lead.last_message_at ?? lead.criado_em)}</span>
+                  <span className="flex flex-col items-end shrink-0">
+                    <span className="text-[11px] text-gray-400">{formatListTime(lead.last_message_at ?? lead.criado_em)}</span>
+                    {lead.vendedor && (
+                      <span className="text-[10px] text-gray-400 flex items-center gap-0.5 mt-0.5">
+                        <UserIcon size={9} />
+                        <span className="truncate max-w-[90px]">{lead.vendedor.nome}</span>
+                      </span>
+                    )}
+                  </span>
                 </span>
                 <span className="flex items-center justify-between gap-2 mt-0.5">
                   <span className="text-xs text-gray-500 truncate">{lead.last_message_preview || 'Nenhuma mensagem ainda'}</span>
@@ -179,6 +262,14 @@ export default function ConversationList({ selectedLeadId, onSelect, etiquetas, 
                     <span className="w-2 h-2 rounded-full shrink-0" style={{ background: '#25D366' }} />
                   )}
                 </span>
+                {lead.etiqueta && (
+                  <span
+                    className="mt-1 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium"
+                    style={{ backgroundColor: lead.etiqueta.cor_hexadecimal + '20', color: lead.etiqueta.cor_hexadecimal }}
+                  >
+                    {lead.etiqueta.nome}
+                  </span>
+                )}
               </span>
             </div>
           );
