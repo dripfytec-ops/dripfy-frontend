@@ -1,13 +1,20 @@
 'use client';
 import { useMemo, useState } from 'react';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, Plus, Mail, MailOpen } from 'lucide-react';
+import { Search, Plus, MailOpen, Mail } from 'lucide-react';
 import api from '@/lib/api';
 import { useCampanhasDM } from '@/lib/dm-api';
 import { Lead, Etiqueta, PaginatedResponse } from '@/types';
 import { getInitials, getAvatarColor } from '@/lib/avatar';
 
 const PAGE_SIZE = 50;
+
+interface ContextMenuState {
+  x: number;
+  y: number;
+  leadId: number;
+  unread: boolean;
+}
 
 interface Props {
   selectedLeadId: number | null;
@@ -29,6 +36,7 @@ export default function ConversationList({ selectedLeadId, onSelect, etiquetas, 
   const [search, setSearch] = useState('');
   const [filterEtiqueta, setFilterEtiqueta] = useState('');
   const [filterCampanha, setFilterCampanha] = useState('');
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
 
   const { data: campanhas = [] } = useCampanhasDM();
   const queryClient = useQueryClient();
@@ -148,7 +156,11 @@ export default function ConversationList({ selectedLeadId, onSelect, etiquetas, 
               tabIndex={0}
               onClick={() => onSelect(lead)}
               onKeyDown={(e) => { if (e.key === 'Enter') onSelect(lead); }}
-              className={`group w-full flex items-center gap-3 px-4 py-3 text-left border-b border-gray-50 transition-colors cursor-pointer ${isActive ? 'bg-primary/5' : 'hover:bg-gray-50'}`}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setContextMenu({ x: e.clientX, y: e.clientY, leadId: lead.id_number, unread });
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-3 text-left border-b border-gray-50 transition-colors cursor-pointer ${isActive ? 'bg-primary/5' : 'hover:bg-gray-50'}`}
             >
               <span
                 className="relative rounded-full flex items-center justify-center text-white font-semibold shrink-0 w-11 h-11 text-sm"
@@ -168,13 +180,6 @@ export default function ConversationList({ selectedLeadId, onSelect, etiquetas, 
                   )}
                 </span>
               </span>
-              <button
-                onClick={(e) => { e.stopPropagation(); toggleReadMutation.mutate({ id: lead.id_number, lida: !unread }); }}
-                title={unread ? 'Marcar como lida' : 'Marcar como não lida'}
-                className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1.5 text-gray-400 hover:text-primary hover:bg-blue-50 rounded-lg transition-opacity"
-              >
-                {unread ? <MailOpen size={15} /> : <Mail size={15} />}
-              </button>
             </div>
           );
         })}
@@ -195,6 +200,27 @@ export default function ConversationList({ selectedLeadId, onSelect, etiquetas, 
             <span className="font-medium">{campanhaSelecionada?.nome ?? 'campanha selecionada'}</span>
           </p>
         </div>
+      )}
+
+      {contextMenu && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setContextMenu(null)} onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }} />
+          <div
+            className="fixed z-50 bg-white rounded-lg shadow-lg border border-gray-200 py-1 min-w-[190px]"
+            style={{ top: contextMenu.y, left: contextMenu.x }}
+          >
+            <button
+              onClick={() => {
+                toggleReadMutation.mutate({ id: contextMenu.leadId, lida: !contextMenu.unread });
+                setContextMenu(null);
+              }}
+              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left"
+            >
+              {contextMenu.unread ? <MailOpen size={15} className="text-gray-400" /> : <Mail size={15} className="text-gray-400" />}
+              {contextMenu.unread ? 'Marcar como lida' : 'Marcar como não lida'}
+            </button>
+          </div>
+        </>
       )}
     </div>
   );
