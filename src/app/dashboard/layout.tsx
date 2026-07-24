@@ -1,6 +1,6 @@
 'use client';
-import { useEffect, useState, Suspense } from 'react';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -14,7 +14,7 @@ import Logo from '@/components/ui/Logo';
 import { getInitials, getAvatarColor } from '@/lib/avatar';
 
 interface NavChild {
-  modo: string;
+  href: string;
   label: string;
   icon: React.ElementType;
 }
@@ -32,8 +32,8 @@ const NAV_BASE: NavItem[] = [
   {
     href: '/dashboard/campaigns', icon: Megaphone, label: 'Disparo em Massa', adminOnly: false,
     children: [
-      { modo: 'proprio', label: 'Disparo Próprio', icon: Building2 },
-      { modo: 'dripfy', label: 'Disparo Dripfy', icon: Sparkles },
+      { href: '/dashboard/campaigns', label: 'Disparo Próprio', icon: Building2 },
+      { href: '/dashboard/campaigns/dripify', label: 'Disparo Dripfy', icon: Sparkles },
     ],
   },
   { href: '/dashboard/vendedores', icon: Users, label: 'Equipe', adminOnly: true },
@@ -46,22 +46,12 @@ const ROLE_LABEL: Record<string, string> = {
   atendente: 'Vendedor',
 };
 
-// useSearchParams() exige um Suspense boundary pra não quebrar a pré-renderização
-// estática das páginas irmãs (settings, vendedores etc) que usam este layout.
-function ModoAtualReader({ onChange }: { onChange: (modo: string | null) => void }) {
-  const searchParams = useSearchParams();
-  const modo = searchParams.get('modo');
-  useEffect(() => { onChange(modo); }, [modo, onChange]);
-  return null;
-}
-
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   const [expandedHref, setExpandedHref] = useState<string | null>(null);
-  const [modoAtual, setModoAtual] = useState<string | null>(null);
 
   const isAdmin = user?.role === 'lojista_admin' || user?.role === 'admin_master';
   const navItems = NAV_BASE.filter((item) => !item.adminOnly || isAdmin);
@@ -77,7 +67,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   // Mantém o grupo aberto enquanto estiver numa das suas subpáginas.
   useEffect(() => {
-    const grupoAtivo = navItems.find((item) => item.children && pathname === item.href);
+    const grupoAtivo = navItems.find((item) => item.children && pathname.startsWith(item.href));
     if (grupoAtivo) setExpandedHref(grupoAtivo.href);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
@@ -113,9 +103,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
-      <Suspense fallback={null}>
-        <ModoAtualReader onChange={setModoAtual} />
-      </Suspense>
       {impersonating && (
         <div className="h-9 flex-shrink-0 flex items-center justify-center gap-2 bg-amber-500 text-white text-xs font-medium px-4">
           <span>Você está navegando como <strong>{user.tenant.nome_empresa}</strong></span>
@@ -174,13 +161,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             }
 
             const isExpanded = expandedHref === item.href;
-            const isGroupActive = pathname === item.href;
+            const isGroupActive = pathname.startsWith(item.href);
 
             return (
               <div key={item.href}>
                 <button
                   onClick={() => {
-                    if (collapsed) { router.push(`${item.href}?modo=${item.children![0].modo}`); return; }
+                    if (collapsed) { router.push(item.children![0].href); return; }
                     setExpandedHref((prev) => (prev === item.href ? null : item.href));
                   }}
                   title={collapsed ? item.label : undefined}
@@ -197,11 +184,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 {!collapsed && isExpanded && (
                   <div className="mt-1 ml-4 pl-3 border-l border-white/10 space-y-0.5">
                     {item.children.map((child) => {
-                      const isChildActive = pathname === item.href && modoAtual === child.modo;
+                      const isChildActive = pathname === child.href;
                       return (
                         <Link
-                          key={child.modo}
-                          href={`${item.href}?modo=${child.modo}`}
+                          key={child.href}
+                          href={child.href}
                           className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-colors ${
                             isChildActive ? 'bg-white/10 text-white font-medium' : 'text-white/40 hover:bg-white/5 hover:text-white/70'
                           }`}
@@ -249,7 +236,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <main className="flex-1 flex flex-col min-w-0 min-h-0">
         <header className="h-14 bg-white border-b border-gray-100 flex items-center justify-between px-6 flex-shrink-0">
           <h2 className="text-sm font-semibold text-gray-700">
-            {navItems.find((item) => item.href === pathname)?.label ?? 'Dripfy'}
+            {navItems.flatMap((item) => (item.children ? [item, ...item.children] : [item])).find((item) => item.href === pathname)?.label ?? 'Dripfy'}
           </h2>
           <p className="text-xs text-gray-400 capitalize">
             {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}

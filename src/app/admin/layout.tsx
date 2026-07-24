@@ -4,12 +4,13 @@ import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import { User } from '@/types';
-import { Building2, Users, LogOut, LayoutDashboard } from 'lucide-react';
+import { Building2, LogOut, LayoutDashboard, Sparkles } from 'lucide-react';
 import Logo from '@/components/ui/Logo';
 
 const navItems = [
   { href: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/admin/tenants', icon: Building2, label: 'Lojistas' },
+  { href: '/admin/demandas-dripfy', icon: Sparkles, label: 'Demandas Dripfy' },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

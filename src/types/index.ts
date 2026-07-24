@@ -31,8 +31,12 @@ export interface Etiqueta {
 
 // ─── Disparo em Massa (canais oficiais Meta + campanhas em lote) ──────────
 
-export type StatusCampanhaDM = 'rascunho' | 'agendada' | 'em_andamento' | 'concluida' | 'pausada';
+export type StatusCampanhaDM = 'rascunho' | 'agendada' | 'em_andamento' | 'concluida' | 'pausada' | 'aguardando_recarga' | 'aguardando_pagamento';
 export type StatusContatoDM = 'pendente' | 'enviando' | 'enviado' | 'entregue' | 'lido' | 'falha';
+export type TipoCampanhaDM = 'proprio' | 'dripfy';
+export type PrioridadeDM = 'baixa' | 'media' | 'alta';
+export type FinanceiroStatusDM = 'pendente' | 'pago';
+export type MidiaTipoDM = 'nenhuma' | 'imagem' | 'video';
 
 export interface CanalDM {
   id: string;
@@ -55,7 +59,7 @@ export interface CampanhaDM {
   canal?: { id: string; nome: string } | null;
   vendedor_id?: string | null;
   vendedor?: { id: string; nome: string } | null;
-  template_name: string;
+  template_name: string | null;
   template_params: string[];
   header_image_url: string | null;
   status: StatusCampanhaDM;
@@ -65,6 +69,25 @@ export interface CampanhaDM {
   enviados: number;
   entregues: number;
   falhas: number;
+  criado_em: string;
+  tipo: TipoCampanhaDM;
+  prioridade: PrioridadeDM;
+  financeiro_status: FinanceiroStatusDM | null;
+  mensagem_texto: string | null;
+  link_botao: string | null;
+  foto_perfil_url: string | null;
+  midia_tipo: MidiaTipoDM | null;
+  midia_url: string | null;
+  aprovado_em: string | null;
+  aprovado_por: string | null;
+  tenant?: { id: string; nome_empresa: string; slug: string };
+}
+
+export interface ModeloMensagemDM {
+  id: string;
+  nome: string;
+  texto: string;
+  link_botao: string | null;
   criado_em: string;
 }
 

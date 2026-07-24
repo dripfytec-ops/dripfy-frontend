@@ -1,13 +1,13 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Papa from 'papaparse';
-import { X, Plus, Radio, Pause, Play, Pencil, Building2, Sparkles, Clock } from 'lucide-react';
+import Link from 'next/link';
+import { X, Radio, Pause, Play, Plus, Settings2 } from 'lucide-react';
 import api from '@/lib/api';
 import {
   useCanaisDM, useCampanhasDM, useCampanhaDM, useStatusCanaisDM,
-  createCanalDM, updateCanalDM, createCampanhaDM, iniciarDisparoDM, pausarCampanhaDM,
+  createCampanhaDM, iniciarDisparoDM, pausarCampanhaDM,
   fetchTemplatesDM,
 } from '@/lib/dm-api';
 import { CanalDM, TemplateDM, StatusCampanhaDM, Vendedor } from '@/types';
@@ -39,173 +39,14 @@ const statusConfig: Record<StatusCampanhaDM, { label: string; className: string 
   em_andamento: { label: 'Em Andamento', className: 'bg-yellow-100 text-yellow-700' },
   concluida: { label: 'Concluída', className: 'bg-green-100 text-green-700' },
   pausada: { label: 'Pausada', className: 'bg-red-100 text-red-700' },
+  aguardando_recarga: { label: 'Aguardando Recarga', className: 'bg-orange-100 text-orange-700' },
+  aguardando_pagamento: { label: 'Aguardando Pagamento', className: 'bg-orange-100 text-orange-700' },
 };
 
 interface ContatoCSV {
   nome: string;
   telefone: string;
   cpf?: string;
-}
-
-// ── Modal: gerenciar canais ─────────────────────────────────────────────────
-function CanaisModal({ onClose }: { onClose: () => void }) {
-  const queryClient = useQueryClient();
-  const { data: canais = [], isLoading } = useCanaisDM();
-  const { data: status = [] } = useStatusCanaisDM();
-  const [mostrarForm, setMostrarForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [nome, setNome] = useState('');
-  const [wabaId, setWabaId] = useState('');
-  const [phoneNumberId, setPhoneNumberId] = useState('');
-  const [accessToken, setAccessToken] = useState('');
-  const [bmNome, setBmNome] = useState('');
-  const [loteSize, setLoteSize] = useState('');
-  const [delayMs, setDelayMs] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-
-  function limparForm() {
-    setNome(''); setWabaId(''); setPhoneNumberId(''); setAccessToken(''); setBmNome('');
-    setLoteSize(''); setDelayMs('');
-    setEditingId(null);
-    setMostrarForm(false);
-  }
-
-  function abrirEdicao(c: CanalDM) {
-    setEditingId(c.id);
-    setNome(c.nome); setWabaId(c.waba_id); setPhoneNumberId(c.phone_number_id);
-    setAccessToken(''); setBmNome(c.bm_nome || '');
-    setLoteSize(c.lote_size ? String(c.lote_size) : ''); setDelayMs(c.delay_ms ? String(c.delay_ms) : '');
-    setMostrarForm(true);
-  }
-
-  async function handleSave() {
-    if (!nome || !wabaId || !phoneNumberId || (!editingId && !accessToken)) {
-      setError('Preencha todos os campos.'); return;
-    }
-    setError(''); setSaving(true);
-    try {
-      const extras = {
-        bm_nome: bmNome,
-        lote_size: loteSize ? Number(loteSize) : undefined,
-        delay_ms: delayMs ? Number(delayMs) : undefined,
-      };
-      if (editingId) {
-        await updateCanalDM(editingId, {
-          nome, waba_id: wabaId, phone_number_id: phoneNumberId, ...extras,
-          ...(accessToken ? { access_token: accessToken } : {}),
-        });
-      } else {
-        await createCanalDM({ nome, waba_id: wabaId, phone_number_id: phoneNumberId, access_token: accessToken, ...extras });
-      }
-      await queryClient.invalidateQueries({ queryKey: ['dm-canais'] });
-      limparForm();
-    } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Erro ao salvar');
-    } finally { setSaving(false); }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h3 className="font-semibold text-gray-800 text-sm">Canais (números oficiais)</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
-        </div>
-        <div className="px-6 py-4 space-y-3 max-h-[75vh] overflow-y-auto">
-          {isLoading ? (
-            <p className="text-sm text-gray-400 text-center py-3">Carregando…</p>
-          ) : (
-            <div className="space-y-2">
-              {canais.map((c) => {
-                const s = status.find((x) => x.canal_id === c.id);
-                return (
-                  <div key={c.id} className="bg-gray-50 rounded-lg px-3 py-2.5 flex items-start justify-between gap-2">
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <p className="text-sm font-medium text-gray-800">{c.nome}</p>
-                        <BadgeQualidade rating={s?.quality_rating ?? null} />
-                      </div>
-                      <p className="text-xs text-gray-400">WABA: {c.waba_id} · Phone: {c.phone_number_id}</p>
-                      <p className="text-xs text-gray-400">BM: {c.bm_nome || '—'}</p>
-                      <p className="text-xs text-gray-400">Lote: {c.lote_size ?? 10} a cada {c.delay_ms ?? 300}ms</p>
-                      {s && !s.erro && (
-                        <p className="text-xs text-gray-400">
-                          Custo 30d: {s.moeda} {(s.custo_30d ?? 0).toFixed(2)} ({(s.volume_30d ?? 0).toLocaleString('pt-BR')} msgs · {s.moeda} {(s.custo_medio ?? 0).toFixed(4)}/msg)
-                        </p>
-                      )}
-                      {s?.erro && <p className="text-xs text-red-500">Erro ao consultar: {s.erro}</p>}
-                    </div>
-                    <button onClick={() => abrirEdicao(c)} className="text-gray-400 hover:text-blue-600 shrink-0 p-1">
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                );
-              })}
-              {canais.length === 0 && <p className="text-sm text-gray-400 text-center py-3">Nenhum canal cadastrado.</p>}
-            </div>
-          )}
-
-          {mostrarForm ? (
-            <div className="border-t border-gray-100 pt-4 space-y-3">
-              <p className="text-xs font-medium text-gray-500">{editingId ? 'Editando canal' : 'Novo canal'}</p>
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">Nome do Canal</label>
-                <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex: Vendas, Suporte..."
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-300" />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">BM (Business Manager)</label>
-                <input value={bmNome} onChange={(e) => setBmNome(e.target.value)} placeholder="Ex: Minha Empresa Matriz"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-300" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Mensagens por lote</label>
-                  <input value={loteSize} onChange={(e) => setLoteSize(e.target.value)} type="number" min={1} placeholder="10 (padrão)"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-300" />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Intervalo entre lotes (ms)</label>
-                  <input value={delayMs} onChange={(e) => setDelayMs(e.target.value)} type="number" min={0} placeholder="300 (padrão)"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-300" />
-                </div>
-              </div>
-              <p className="text-[11px] text-gray-400 -mt-1.5">Deixe em branco pra usar o padrão (10 msgs a cada 300ms ≈ 33/s). BMs com tier maior (10K/24h) aguentam lote maior sem afetar os outros canais.</p>
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">WABA ID</label>
-                <input value={wabaId} onChange={(e) => setWabaId(e.target.value)} placeholder="Identificação da conta WhatsApp Business"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-300" />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">Phone Number ID</label>
-                <input value={phoneNumberId} onChange={(e) => setPhoneNumberId(e.target.value)} placeholder="Identificação do perfil do telefone"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-300" />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">Access Token</label>
-                <input value={accessToken} onChange={(e) => setAccessToken(e.target.value)} type="password"
-                  placeholder={editingId ? 'Deixe em branco para manter o token atual' : 'Token de acesso permanente'}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-300" />
-              </div>
-              {error && <p className="text-xs text-red-500">{error}</p>}
-              <div className="flex gap-2">
-                <button onClick={limparForm} className="flex-1 py-2 rounded-lg border border-gray-200 text-sm text-gray-500 hover:bg-gray-50">Cancelar</button>
-                <button onClick={handleSave} disabled={saving} className="flex-1 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium disabled:opacity-60">
-                  {saving ? 'Salvando…' : editingId ? 'Salvar Alterações' : 'Salvar Canal'}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button onClick={() => setMostrarForm(true)}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-dashed border-gray-300 text-sm text-gray-500 hover:border-blue-300 hover:text-blue-600 transition-colors">
-              <Plus className="w-3.5 h-3.5" /> Novo canal
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
 }
 
 // ── Modal: nova campanha ────────────────────────────────────────────────────
@@ -540,13 +381,11 @@ function DisparoProprioView() {
   const { data: canais = [] } = useCanaisDM();
   const queryClient = useQueryClient();
 
-  const [showCanais, setShowCanais] = useState(false);
   const [showNova, setShowNova] = useState(false);
   const [detalheId, setDetalheId] = useState<string | null>(null);
 
   return (
     <div className="p-6">
-      {showCanais && <CanaisModal onClose={() => setShowCanais(false)} />}
       {showNova && (
         <NovaCampanhaModal
           canais={canais}
@@ -560,27 +399,44 @@ function DisparoProprioView() {
       )}
       {detalheId != null && <CampanhaDetalheModal campanhaId={detalheId} onClose={() => setDetalheId(null)} />}
 
+      {/* Canais — somente visualização/seleção aqui; gestão fica em Configurações */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-4">
+        <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <Radio className="w-3.5 h-3.5 text-gray-400" />
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Canais WhatsApp</h3>
+          </div>
+          <Link
+            href="/dashboard/settings"
+            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-primary transition-colors"
+          >
+            <Settings2 size={12} /> Gerenciar em Configurações
+          </Link>
+        </div>
+        <div className="px-5 py-3 flex flex-wrap gap-2">
+          {canais.length === 0 && !isLoading && (
+            <p className="text-xs text-amber-600">Nenhum canal cadastrado — configure um em Configurações antes de criar uma campanha.</p>
+          )}
+          {canais.map((c) => (
+            <span key={c.id} className="text-xs px-2.5 py-1 rounded-full bg-gray-50 border border-gray-100 text-gray-600">
+              {c.nome}
+            </span>
+          ))}
+        </div>
+      </div>
+
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
           <h2 className="font-semibold text-gray-800 text-sm">Disparo Próprio — API Oficial WhatsApp</h2>
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-400">{isLoading ? 'Carregando…' : `${campanhas.length} campanha(s)`}</span>
-            <button onClick={() => setShowCanais(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 hover:border-blue-300 text-gray-600 hover:text-blue-600 text-xs font-medium rounded-lg transition-colors">
-              <Radio className="w-3 h-3" /> Canais
-            </button>
-            <button onClick={() => (canais.length === 0 ? setShowCanais(true) : setShowNova(true))}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded-lg shadow-sm transition-colors">
+            <button onClick={() => setShowNova(true)}
+              disabled={canais.length === 0}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-medium rounded-lg shadow-sm transition-colors">
               <Plus className="w-3 h-3" /> Nova Campanha
             </button>
           </div>
         </div>
-
-        {canais.length === 0 && !isLoading && (
-          <div className="px-5 py-3 bg-amber-50 border-b border-amber-100 text-xs text-amber-700">
-            Cadastre um canal (número oficial da Meta) antes de criar uma campanha.
-          </div>
-        )}
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -629,62 +485,8 @@ function DisparoProprioView() {
   );
 }
 
-// ── Disparo Dripfy: infraestrutura compartilhada da Dripfy (ainda não existe
-// backend pra isso — placeholder até definirmos canal compartilhado/custo) ──
-function DisparoDripfyView() {
-  return (
-    <div className="p-6">
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-10 flex flex-col items-center text-center gap-3 max-w-lg mx-auto">
-        <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center">
-          <Clock className="w-6 h-6 text-amber-500" />
-        </div>
-        <h3 className="font-semibold text-gray-800">Disparo Dripfy — em breve</h3>
-        <p className="text-sm text-gray-500">
-          Dispare campanhas usando a infraestrutura da Dripfy, sem precisar cadastrar seu próprio
-          número/Business Manager na Meta. Estamos finalizando essa opção.
-        </p>
-      </div>
-    </div>
-  );
-}
-
-// ── Página principal: modo escolhido no submenu "Disparo em Massa" da sidebar ──
+// ── Página principal: Disparo Próprio é o único fluxo desta rota — Disparo
+// Dripfy tem rota própria em /dashboard/campaigns/dripify ──────────────────
 export default function DisparoMassaPage() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const modo = searchParams.get('modo');
-
-  if (modo === 'proprio') return <DisparoProprioView />;
-  if (modo === 'dripfy') return <DisparoDripfyView />;
-
-  // Sem "modo" na URL (ex: acesso direto) — escolha via cards, além do submenu na sidebar.
-  return (
-    <div className="p-6 max-w-3xl">
-      <h2 className="text-lg font-semibold text-gray-800 mb-1">Disparo em Massa</h2>
-      <p className="text-sm text-gray-500 mb-6">Escolha como você quer disparar suas campanhas.</p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <button
-          onClick={() => router.push('/dashboard/campaigns?modo=proprio')}
-          className="text-left bg-white rounded-2xl border border-gray-100 hover:border-blue-300 hover:shadow-sm transition-all p-5 flex flex-col gap-2"
-        >
-          <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
-            <Building2 className="w-5 h-5 text-blue-500" />
-          </div>
-          <h3 className="font-semibold text-gray-800 text-sm">Disparo Próprio</h3>
-          <p className="text-xs text-gray-500">Use seu próprio número e Business Manager cadastrados na Meta.</p>
-        </button>
-        <button
-          onClick={() => router.push('/dashboard/campaigns?modo=dripfy')}
-          className="text-left bg-white rounded-2xl border border-gray-100 hover:border-amber-300 hover:shadow-sm transition-all p-5 flex flex-col gap-2 relative"
-        >
-          <span className="absolute top-3 right-3 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600">Em breve</span>
-          <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
-            <Sparkles className="w-5 h-5 text-amber-500" />
-          </div>
-          <h3 className="font-semibold text-gray-800 text-sm">Disparo Dripfy</h3>
-          <p className="text-xs text-gray-500">Use a infraestrutura da Dripfy, sem precisar configurar seu próprio canal.</p>
-        </button>
-      </div>
-    </div>
-  );
+  return <DisparoProprioView />;
 }
