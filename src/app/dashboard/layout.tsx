@@ -14,7 +14,7 @@ import { getInitials, getAvatarColor } from '@/lib/avatar';
 
 const NAV_BASE = [
   { href: '/dashboard', icon: MessageCircle, label: 'Chat', adminOnly: false },
-  { href: '/dashboard/campaigns', icon: Megaphone, label: 'Campanhas', adminOnly: false },
+  { href: '/dashboard/campaigns', icon: Megaphone, label: 'Disparo em Massa', adminOnly: false },
   { href: '/dashboard/vendedores', icon: Users, label: 'Equipe', adminOnly: true },
   { href: '/dashboard/settings', icon: Settings, label: 'Configurações', adminOnly: true },
 ];

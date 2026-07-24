@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Papa from 'papaparse';
-import { X, Plus, Radio, Pause, Play, Pencil } from 'lucide-react';
+import { X, Plus, Radio, Pause, Play, Pencil, ArrowLeft, Building2, Sparkles, Clock } from 'lucide-react';
 import api from '@/lib/api';
 import {
   useCanaisDM, useCampanhasDM, useCampanhaDM, useStatusCanaisDM,
@@ -533,8 +533,8 @@ function CampanhaDetalheModal({ campanhaId, onClose }: { campanhaId: string; onC
   );
 }
 
-// ── Página principal ──────────────────────────────────────────────────────────
-export default function DisparoMassaPage() {
+// ── Disparo Próprio: fluxo completo de hoje (canal/BM do próprio lojista) ──
+function DisparoProprioView({ onVoltar }: { onVoltar: () => void }) {
   const { data: campanhas = [], isLoading } = useCampanhasDM();
   const { data: canais = [] } = useCanaisDM();
   const queryClient = useQueryClient();
@@ -559,9 +559,16 @@ export default function DisparoMassaPage() {
       )}
       {detalheId != null && <CampanhaDetalheModal campanhaId={detalheId} onClose={() => setDetalheId(null)} />}
 
+      <button
+        onClick={onVoltar}
+        className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 mb-3 transition-colors"
+      >
+        <ArrowLeft className="w-3.5 h-3.5" /> Voltar
+      </button>
+
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="font-semibold text-gray-800 text-sm">Disparo em Massa — API Oficial WhatsApp</h2>
+          <h2 className="font-semibold text-gray-800 text-sm">Disparo Próprio — API Oficial WhatsApp</h2>
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-400">{isLoading ? 'Carregando…' : `${campanhas.length} campanha(s)`}</span>
             <button onClick={() => setShowCanais(true)}
@@ -623,6 +630,69 @@ export default function DisparoMassaPage() {
             </tbody>
           </table>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Disparo Dripfy: infraestrutura compartilhada da Dripfy (ainda não existe
+// backend pra isso — placeholder até definirmos canal compartilhado/custo) ──
+function DisparoDripfyView({ onVoltar }: { onVoltar: () => void }) {
+  return (
+    <div className="p-6">
+      <button
+        onClick={onVoltar}
+        className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 mb-3 transition-colors"
+      >
+        <ArrowLeft className="w-3.5 h-3.5" /> Voltar
+      </button>
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-10 flex flex-col items-center text-center gap-3 max-w-lg mx-auto">
+        <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center">
+          <Clock className="w-6 h-6 text-amber-500" />
+        </div>
+        <h3 className="font-semibold text-gray-800">Disparo Dripfy — em breve</h3>
+        <p className="text-sm text-gray-500">
+          Dispare campanhas usando a infraestrutura da Dripfy, sem precisar cadastrar seu próprio
+          número/Business Manager na Meta. Estamos finalizando essa opção.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ── Página principal: escolha entre Disparo Próprio e Disparo Dripfy ───────
+export default function DisparoMassaPage() {
+  const [modo, setModo] = useState<'proprio' | 'dripfy' | null>(null);
+
+  if (modo === 'proprio') return <DisparoProprioView onVoltar={() => setModo(null)} />;
+  if (modo === 'dripfy') return <DisparoDripfyView onVoltar={() => setModo(null)} />;
+
+  return (
+    <div className="p-6 max-w-3xl">
+      <h2 className="text-lg font-semibold text-gray-800 mb-1">Disparo em Massa</h2>
+      <p className="text-sm text-gray-500 mb-6">Escolha como você quer disparar suas campanhas.</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <button
+          onClick={() => setModo('proprio')}
+          className="text-left bg-white rounded-2xl border border-gray-100 hover:border-blue-300 hover:shadow-sm transition-all p-5 flex flex-col gap-2"
+        >
+          <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
+            <Building2 className="w-5 h-5 text-blue-500" />
+          </div>
+          <h3 className="font-semibold text-gray-800 text-sm">Disparo Próprio</h3>
+          <p className="text-xs text-gray-500">Use seu próprio número e Business Manager cadastrados na Meta.</p>
+        </button>
+        <button
+          onClick={() => setModo('dripfy')}
+          className="text-left bg-white rounded-2xl border border-gray-100 hover:border-amber-300 hover:shadow-sm transition-all p-5 flex flex-col gap-2 relative"
+        >
+          <span className="absolute top-3 right-3 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600">Em breve</span>
+          <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
+            <Sparkles className="w-5 h-5 text-amber-500" />
+          </div>
+          <h3 className="font-semibold text-gray-800 text-sm">Disparo Dripfy</h3>
+          <p className="text-xs text-gray-500">Use a infraestrutura da Dripfy, sem precisar configurar seu próprio canal.</p>
+        </button>
       </div>
     </div>
   );
