@@ -1,6 +1,6 @@
 'use client';
-import { useEffect, useState } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useEffect, useState, Suspense } from 'react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -8,13 +8,34 @@ import { auth } from '@/lib/auth';
 import { User } from '@/types';
 import {
   MessageCircle, Users, Megaphone, Settings, LogOut, ChevronLeft, ChevronRight, ArrowLeftRight,
+  ChevronDown, Building2, Sparkles,
 } from 'lucide-react';
 import Logo from '@/components/ui/Logo';
 import { getInitials, getAvatarColor } from '@/lib/avatar';
 
-const NAV_BASE = [
+interface NavChild {
+  modo: string;
+  label: string;
+  icon: React.ElementType;
+}
+
+interface NavItem {
+  href: string;
+  icon: React.ElementType;
+  label: string;
+  adminOnly: boolean;
+  children?: NavChild[];
+}
+
+const NAV_BASE: NavItem[] = [
   { href: '/dashboard', icon: MessageCircle, label: 'Chat', adminOnly: false },
-  { href: '/dashboard/campaigns', icon: Megaphone, label: 'Disparo em Massa', adminOnly: false },
+  {
+    href: '/dashboard/campaigns', icon: Megaphone, label: 'Disparo em Massa', adminOnly: false,
+    children: [
+      { modo: 'proprio', label: 'Disparo Próprio', icon: Building2 },
+      { modo: 'dripfy', label: 'Disparo Dripfy', icon: Sparkles },
+    ],
+  },
   { href: '/dashboard/vendedores', icon: Users, label: 'Equipe', adminOnly: true },
   { href: '/dashboard/settings', icon: Settings, label: 'Configurações', adminOnly: true },
 ];
@@ -25,11 +46,22 @@ const ROLE_LABEL: Record<string, string> = {
   atendente: 'Vendedor',
 };
 
+// useSearchParams() exige um Suspense boundary pra não quebrar a pré-renderização
+// estática das páginas irmãs (settings, vendedores etc) que usam este layout.
+function ModoAtualReader({ onChange }: { onChange: (modo: string | null) => void }) {
+  const searchParams = useSearchParams();
+  const modo = searchParams.get('modo');
+  useEffect(() => { onChange(modo); }, [modo, onChange]);
+  return null;
+}
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
   const [collapsed, setCollapsed] = useState(false);
+  const [expandedHref, setExpandedHref] = useState<string | null>(null);
+  const [modoAtual, setModoAtual] = useState<string | null>(null);
 
   const isAdmin = user?.role === 'lojista_admin' || user?.role === 'admin_master';
   const navItems = NAV_BASE.filter((item) => !item.adminOnly || isAdmin);
@@ -42,6 +74,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     setUser(auth.getUser());
     setCollapsed(localStorage.getItem('dripfy_sidebar_collapsed') === '1');
   }, [router]);
+
+  // Mantém o grupo aberto enquanto estiver numa das suas subpáginas.
+  useEffect(() => {
+    const grupoAtivo = navItems.find((item) => item.children && pathname === item.href);
+    if (grupoAtivo) setExpandedHref(grupoAtivo.href);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   const toggleCollapsed = () => {
     setCollapsed((prev) => {
@@ -74,6 +113,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
+      <Suspense fallback={null}>
+        <ModoAtualReader onChange={setModoAtual} />
+      </Suspense>
       {impersonating && (
         <div className="h-9 flex-shrink-0 flex items-center justify-center gap-2 bg-amber-500 text-white text-xs font-medium px-4">
           <span>Você está navegando como <strong>{user.tenant.nome_empresa}</strong></span>
@@ -112,21 +154,68 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-1">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              title={collapsed ? item.label : undefined}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${collapsed ? 'justify-center' : ''} ${
-                pathname === item.href
-                  ? 'bg-white/10 text-white font-medium'
-                  : 'text-white/50 hover:bg-white/5 hover:text-white/80'
-              }`}
-            >
-              <item.icon size={17} strokeWidth={1.75} />
-              {!collapsed && item.label}
-            </Link>
-          ))}
+          {navItems.map((item) => {
+            if (!item.children) {
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  title={collapsed ? item.label : undefined}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${collapsed ? 'justify-center' : ''} ${
+                    pathname === item.href
+                      ? 'bg-white/10 text-white font-medium'
+                      : 'text-white/50 hover:bg-white/5 hover:text-white/80'
+                  }`}
+                >
+                  <item.icon size={17} strokeWidth={1.75} />
+                  {!collapsed && item.label}
+                </Link>
+              );
+            }
+
+            const isExpanded = expandedHref === item.href;
+            const isGroupActive = pathname === item.href;
+
+            return (
+              <div key={item.href}>
+                <button
+                  onClick={() => {
+                    if (collapsed) { router.push(`${item.href}?modo=${item.children![0].modo}`); return; }
+                    setExpandedHref((prev) => (prev === item.href ? null : item.href));
+                  }}
+                  title={collapsed ? item.label : undefined}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${collapsed ? 'justify-center' : ''} ${
+                    isGroupActive ? 'text-white font-medium' : 'text-white/50 hover:bg-white/5 hover:text-white/80'
+                  }`}
+                >
+                  <item.icon size={17} strokeWidth={1.75} />
+                  {!collapsed && <span className="flex-1 text-left">{item.label}</span>}
+                  {!collapsed && (
+                    <ChevronDown size={13} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                  )}
+                </button>
+                {!collapsed && isExpanded && (
+                  <div className="mt-1 ml-4 pl-3 border-l border-white/10 space-y-0.5">
+                    {item.children.map((child) => {
+                      const isChildActive = pathname === item.href && modoAtual === child.modo;
+                      return (
+                        <Link
+                          key={child.modo}
+                          href={`${item.href}?modo=${child.modo}`}
+                          className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-colors ${
+                            isChildActive ? 'bg-white/10 text-white font-medium' : 'text-white/40 hover:bg-white/5 hover:text-white/70'
+                          }`}
+                        >
+                          <child.icon size={14} strokeWidth={1.75} />
+                          {child.label}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </nav>
 
         <div className="px-3 pb-4 pt-3 border-t border-white/10">

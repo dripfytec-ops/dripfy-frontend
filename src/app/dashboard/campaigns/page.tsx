@@ -1,8 +1,9 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Papa from 'papaparse';
-import { X, Plus, Radio, Pause, Play, Pencil, ArrowLeft, Building2, Sparkles, Clock } from 'lucide-react';
+import { X, Plus, Radio, Pause, Play, Pencil, Building2, Sparkles, Clock } from 'lucide-react';
 import api from '@/lib/api';
 import {
   useCanaisDM, useCampanhasDM, useCampanhaDM, useStatusCanaisDM,
@@ -534,7 +535,7 @@ function CampanhaDetalheModal({ campanhaId, onClose }: { campanhaId: string; onC
 }
 
 // ── Disparo Próprio: fluxo completo de hoje (canal/BM do próprio lojista) ──
-function DisparoProprioView({ onVoltar }: { onVoltar: () => void }) {
+function DisparoProprioView() {
   const { data: campanhas = [], isLoading } = useCampanhasDM();
   const { data: canais = [] } = useCanaisDM();
   const queryClient = useQueryClient();
@@ -558,13 +559,6 @@ function DisparoProprioView({ onVoltar }: { onVoltar: () => void }) {
         />
       )}
       {detalheId != null && <CampanhaDetalheModal campanhaId={detalheId} onClose={() => setDetalheId(null)} />}
-
-      <button
-        onClick={onVoltar}
-        className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 mb-3 transition-colors"
-      >
-        <ArrowLeft className="w-3.5 h-3.5" /> Voltar
-      </button>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
@@ -637,15 +631,9 @@ function DisparoProprioView({ onVoltar }: { onVoltar: () => void }) {
 
 // ── Disparo Dripfy: infraestrutura compartilhada da Dripfy (ainda não existe
 // backend pra isso — placeholder até definirmos canal compartilhado/custo) ──
-function DisparoDripfyView({ onVoltar }: { onVoltar: () => void }) {
+function DisparoDripfyView() {
   return (
     <div className="p-6">
-      <button
-        onClick={onVoltar}
-        className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 mb-3 transition-colors"
-      >
-        <ArrowLeft className="w-3.5 h-3.5" /> Voltar
-      </button>
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-10 flex flex-col items-center text-center gap-3 max-w-lg mx-auto">
         <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center">
           <Clock className="w-6 h-6 text-amber-500" />
@@ -660,20 +648,23 @@ function DisparoDripfyView({ onVoltar }: { onVoltar: () => void }) {
   );
 }
 
-// ── Página principal: escolha entre Disparo Próprio e Disparo Dripfy ───────
+// ── Página principal: modo escolhido no submenu "Disparo em Massa" da sidebar ──
 export default function DisparoMassaPage() {
-  const [modo, setModo] = useState<'proprio' | 'dripfy' | null>(null);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const modo = searchParams.get('modo');
 
-  if (modo === 'proprio') return <DisparoProprioView onVoltar={() => setModo(null)} />;
-  if (modo === 'dripfy') return <DisparoDripfyView onVoltar={() => setModo(null)} />;
+  if (modo === 'proprio') return <DisparoProprioView />;
+  if (modo === 'dripfy') return <DisparoDripfyView />;
 
+  // Sem "modo" na URL (ex: acesso direto) — escolha via cards, além do submenu na sidebar.
   return (
     <div className="p-6 max-w-3xl">
       <h2 className="text-lg font-semibold text-gray-800 mb-1">Disparo em Massa</h2>
       <p className="text-sm text-gray-500 mb-6">Escolha como você quer disparar suas campanhas.</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <button
-          onClick={() => setModo('proprio')}
+          onClick={() => router.push('/dashboard/campaigns?modo=proprio')}
           className="text-left bg-white rounded-2xl border border-gray-100 hover:border-blue-300 hover:shadow-sm transition-all p-5 flex flex-col gap-2"
         >
           <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
@@ -683,7 +674,7 @@ export default function DisparoMassaPage() {
           <p className="text-xs text-gray-500">Use seu próprio número e Business Manager cadastrados na Meta.</p>
         </button>
         <button
-          onClick={() => setModo('dripfy')}
+          onClick={() => router.push('/dashboard/campaigns?modo=dripfy')}
           className="text-left bg-white rounded-2xl border border-gray-100 hover:border-amber-300 hover:shadow-sm transition-all p-5 flex flex-col gap-2 relative"
         >
           <span className="absolute top-3 right-3 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600">Em breve</span>
