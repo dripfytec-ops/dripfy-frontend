@@ -8,11 +8,18 @@ import { z } from 'zod';
 import { useRouter } from 'next/navigation';
 import {
   Plus, X, Building2, Users, LayoutList, Settings, LogIn,
-  CheckCircle2, XCircle, KeyRound, Smartphone,
+  CheckCircle2, XCircle, KeyRound, Smartphone, Wallet, ArrowUpCircle, ArrowDownCircle, SlidersHorizontal,
 } from 'lucide-react';
 import api from '@/lib/api';
 import { auth } from '@/lib/auth';
-import { Tenant } from '@/types';
+import { Tenant, CreditoTransacaoTipo } from '@/types';
+import { useExtratoCreditosTenant } from '@/lib/financeiro-api';
+
+const TIPO_CONFIG: Record<CreditoTransacaoTipo, { label: string; icon: React.ElementType; className: string }> = {
+  compra: { label: 'Compra', icon: ArrowUpCircle, className: 'text-green-600' },
+  consumo: { label: 'Consumo', icon: ArrowDownCircle, className: 'text-red-600' },
+  ajuste: { label: 'Ajuste', icon: SlidersHorizontal, className: 'text-blue-600' },
+};
 
 const schema = z.object({
   nome_empresa: z.string().min(2),
@@ -82,6 +89,8 @@ export default function TenantsPage() {
     queryFn: async () => (await api.get(`/tenants/${detailTenantId}`)).data,
     enabled: !!detailTenantId,
   });
+
+  const { data: extrato, isLoading: extratoLoading } = useExtratoCreditosTenant(detailTenantId);
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -381,6 +390,47 @@ export default function TenantsPage() {
                 </div>
               </div>
             )}
+
+            {/* Créditos Dripfy */}
+            <div className="mb-5">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Créditos Dripfy</p>
+              {extratoLoading ? (
+                <div className="flex justify-center p-6">
+                  <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-3 p-3 bg-amber-50 rounded-lg mb-3">
+                    <Wallet size={18} className="text-amber-500" />
+                    <div>
+                      <p className="text-xs text-gray-500">Saldo atual</p>
+                      <p className="text-lg font-bold text-gray-900">{extrato?.creditos_saldo ?? 0} créditos</p>
+                    </div>
+                  </div>
+                  {extrato && extrato.transacoes.length === 0 ? (
+                    <p className="text-gray-400 text-sm text-center py-4">Nenhuma movimentação ainda.</p>
+                  ) : (
+                    <div className="space-y-1.5 max-h-56 overflow-y-auto">
+                      {extrato?.transacoes.map((t) => {
+                        const cfg = TIPO_CONFIG[t.tipo];
+                        const Icon = cfg.icon;
+                        return (
+                          <div key={t.id} className="flex items-center justify-between text-xs border border-gray-100 rounded-lg px-2.5 py-2">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <Icon size={12} className={`${cfg.className} flex-shrink-0`} />
+                              <span className="text-gray-600 truncate">{t.descricao}</span>
+                            </div>
+                            <span className={`font-mono font-medium flex-shrink-0 ml-2 ${t.quantidade >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {t.quantidade >= 0 ? '+' : ''}{t.quantidade}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
 
             {/* Stats */}
             {tenantDetail && (

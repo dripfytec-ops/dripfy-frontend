@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
-import { Plus, X, Sparkles } from 'lucide-react';
+import { Plus, X, Sparkles, Wallet } from 'lucide-react';
 import { useCampanhasDripifyDM, useCampanhaDM } from '@/lib/dm-api';
 import { StatusCampanhaDM } from '@/types';
 
@@ -106,6 +106,12 @@ export default function DisparoDripifyListaPage() {
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-400">{isLoading ? 'Carregando…' : `${demandas.length} demanda(s)`}</span>
+            <Link
+              href="/dashboard/campaigns/dripify/creditos"
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 hover:bg-gray-50 text-gray-600 text-xs font-medium rounded-lg transition-colors"
+            >
+              <Wallet className="w-3 h-3" /> Créditos
+            </Link>
             <Link
               href="/dashboard/campaigns/dripify/nova"
               className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded-lg shadow-sm transition-colors"

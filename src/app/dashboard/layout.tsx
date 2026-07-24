@@ -8,7 +8,7 @@ import { auth } from '@/lib/auth';
 import { User } from '@/types';
 import {
   MessageCircle, Users, Megaphone, Settings, LogOut, ChevronLeft, ChevronRight, ArrowLeftRight,
-  ChevronDown, Building2, Sparkles, Radio, KeyRound, Zap, Tag, MessageSquareText,
+  ChevronDown, Building2, Sparkles, Radio, KeyRound, Zap, Tag, MessageSquareText, Wallet,
 } from 'lucide-react';
 import Logo from '@/components/ui/Logo';
 import { getInitials, getAvatarColor } from '@/lib/avatar';
@@ -34,6 +34,7 @@ const NAV_BASE: NavItem[] = [
     children: [
       { href: '/dashboard/campaigns', label: 'Disparo Próprio', icon: Building2 },
       { href: '/dashboard/campaigns/dripify', label: 'Disparo Dripfy', icon: Sparkles },
+      { href: '/dashboard/campaigns/dripify/creditos', label: 'Créditos Dripfy', icon: Wallet },
     ],
   },
   {

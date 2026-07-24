@@ -231,3 +231,22 @@ export interface Invoice {
   pago_em: string | null;
 }
 
+export type CreditoTransacaoTipo = 'compra' | 'consumo' | 'ajuste';
+
+export interface CreditoTransacao {
+  id: string;
+  tenant_id: string;
+  tipo: CreditoTransacaoTipo;
+  quantidade: number;
+  saldo_apos: number;
+  descricao: string;
+  campanha_id: string | null;
+  invoice_id: string | null;
+  criado_em: string;
+}
+
+export interface ExtratoCreditos {
+  creditos_saldo: number;
+  transacoes: CreditoTransacao[];
+}
+
