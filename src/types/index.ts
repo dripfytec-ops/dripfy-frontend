@@ -192,3 +192,19 @@ export interface PaginatedResponse<T> {
   totalPages: number;
 }
 
+export type InvoiceStatus = 'pendente' | 'pago' | 'expirado' | 'cancelado';
+
+export interface Invoice {
+  id: string;
+  tenant_id: string;
+  quantidade_creditos: number;
+  valor_total: string;
+  status: InvoiceStatus;
+  gateway: string;
+  gateway_payment_id: string | null;
+  pix_qrcode_base64: string | null;
+  pix_copia_cola: string | null;
+  criado_em: string;
+  pago_em: string | null;
+}
+

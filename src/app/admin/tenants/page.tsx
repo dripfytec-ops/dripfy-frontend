@@ -5,11 +5,13 @@ import { toast } from 'sonner';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useRouter } from 'next/navigation';
 import {
-  Plus, X, Building2, Users, LayoutList, Settings,
+  Plus, X, Building2, Users, LayoutList, Settings, LogIn,
   CheckCircle2, XCircle, KeyRound, Smartphone,
 } from 'lucide-react';
 import api from '@/lib/api';
+import { auth } from '@/lib/auth';
 import { Tenant } from '@/types';
 
 const schema = z.object({
@@ -46,11 +48,29 @@ type TenantDetail = {
 };
 
 export default function TenantsPage() {
+  const router = useRouter();
   const [modalOpen, setModalOpen] = useState(false);
   const [detailTenantId, setDetailTenantId] = useState<string | null>(null);
   const [resetingUserId, setResetingUserId] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState('');
+  const [impersonatingId, setImpersonatingId] = useState<string | null>(null);
   const queryClient = useQueryClient();
+
+  const handleEnterAsTenant = async (tenantId: string) => {
+    const masterToken = auth.getToken();
+    const masterUser = auth.getUser();
+    if (!masterToken || !masterUser) return;
+    setImpersonatingId(tenantId);
+    try {
+      const { data } = await api.post(`/tenants/${tenantId}/impersonate`);
+      auth.startImpersonation(masterToken, masterUser, data.access_token, data.user);
+      router.push('/dashboard');
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || 'Erro ao entrar no tenant.');
+    } finally {
+      setImpersonatingId(null);
+    }
+  };
 
   const { data: tenants = [], isLoading } = useQuery<Tenant[]>({
     queryKey: ['tenants'],
@@ -161,6 +181,14 @@ export default function TenantsPage() {
                   <Settings size={12} /> Gerenciar
                 </button>
               </div>
+              <button
+                onClick={() => handleEnterAsTenant(tenant.id)}
+                disabled={impersonatingId === tenant.id}
+                className="w-full mt-3 flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+              >
+                <LogIn size={12} />
+                {impersonatingId === tenant.id ? 'Entrando...' : 'Entrar como este tenant'}
+              </button>
             </div>
           ))}
           {tenants.length === 0 && (

@@ -2,10 +2,12 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
+import { toast } from 'sonner';
+import api from '@/lib/api';
 import { auth } from '@/lib/auth';
 import { User } from '@/types';
 import {
-  MessageCircle, Users, Megaphone, Settings, LogOut, ChevronLeft, ChevronRight,
+  MessageCircle, Users, Megaphone, Settings, LogOut, ChevronLeft, ChevronRight, ArrowLeftRight,
 } from 'lucide-react';
 import Logo from '@/components/ui/Logo';
 import { getInitials, getAvatarColor } from '@/lib/avatar';
@@ -53,10 +55,37 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     router.push('/login');
   };
 
+  const handleVoltarAoMaster = async () => {
+    const masterToken = auth.getMasterToken();
+    const masterUser = auth.getMasterUser();
+    if (!masterToken || !masterUser) return;
+    try {
+      const { data } = await api.post('/auth/voltar-master');
+      auth.endImpersonation(data.access_token, data.user);
+      router.push('/admin/tenants');
+    } catch {
+      toast.error('Erro ao voltar para o Master.');
+    }
+  };
+
   if (!user) return null;
 
+  const impersonating = auth.isImpersonating();
+
   return (
-    <div className="h-screen flex bg-gray-50 overflow-hidden">
+    <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
+      {impersonating && (
+        <div className="h-9 flex-shrink-0 flex items-center justify-center gap-2 bg-amber-500 text-white text-xs font-medium px-4">
+          <span>Você está navegando como <strong>{user.tenant.nome_empresa}</strong></span>
+          <button
+            onClick={handleVoltarAoMaster}
+            className="flex items-center gap-1 bg-white/20 hover:bg-white/30 px-2 py-0.5 rounded-md transition-colors"
+          >
+            <ArrowLeftRight size={11} /> Voltar ao Master
+          </button>
+        </div>
+      )}
+      <div className="flex-1 flex min-h-0 overflow-hidden">
       {/* Sidebar */}
       <aside
         className={`relative flex-shrink-0 flex flex-col transition-[width] duration-200 ${collapsed ? 'w-[68px]' : 'w-60'}`}
@@ -141,6 +170,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {children}
         </div>
       </main>
+      </div>
     </div>
   );
 }
