@@ -407,7 +407,7 @@ function DisparoProprioView() {
             <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Canais WhatsApp</h3>
           </div>
           <Link
-            href="/dashboard/settings"
+            href="/dashboard/settings/canais"
             className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-primary transition-colors"
           >
             <Settings2 size={12} /> Gerenciar em Configurações

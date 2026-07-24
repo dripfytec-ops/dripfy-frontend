@@ -8,7 +8,7 @@ import { auth } from '@/lib/auth';
 import { User } from '@/types';
 import {
   MessageCircle, Users, Megaphone, Settings, LogOut, ChevronLeft, ChevronRight, ArrowLeftRight,
-  ChevronDown, Building2, Sparkles,
+  ChevronDown, Building2, Sparkles, Radio, KeyRound, Zap, Tag, MessageSquareText,
 } from 'lucide-react';
 import Logo from '@/components/ui/Logo';
 import { getInitials, getAvatarColor } from '@/lib/avatar';
@@ -36,8 +36,17 @@ const NAV_BASE: NavItem[] = [
       { href: '/dashboard/campaigns/dripify', label: 'Disparo Dripfy', icon: Sparkles },
     ],
   },
-  { href: '/dashboard/vendedores', icon: Users, label: 'Equipe', adminOnly: true },
-  { href: '/dashboard/settings', icon: Settings, label: 'Configurações', adminOnly: true },
+  {
+    href: '/dashboard/settings', icon: Settings, label: 'Configurações', adminOnly: true,
+    children: [
+      { href: '/dashboard/settings/equipe', label: 'Equipe', icon: Users },
+      { href: '/dashboard/settings/canais', label: 'Gerenciar Canais', icon: Radio },
+      { href: '/dashboard/settings/tokens', label: 'Tokens Meta', icon: KeyRound },
+      { href: '/dashboard/settings/respostas-rapidas', label: 'Respostas Rápidas', icon: Zap },
+      { href: '/dashboard/settings/etiquetas', label: 'Etiquetas', icon: Tag },
+      { href: '/dashboard/settings/boas-vindas', label: 'Mensagem de Boas Vindas', icon: MessageSquareText },
+    ],
+  },
 ];
 
 const ROLE_LABEL: Record<string, string> = {

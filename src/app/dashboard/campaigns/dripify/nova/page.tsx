@@ -177,6 +177,7 @@ export default function DisparoDripifyPage() {
   const podeAvancar = () => {
     if (passo === 1) return nomeDemanda.trim() !== '';
     if (passo === 2) return mensagemTexto.trim() !== '' && (!salvarModelo || nomeModelo.trim() !== '');
+    if (passo === 3) return midiaTipo === 'nenhuma' || midiaFile !== null;
     if (passo === 4) return contatos.length > 0;
     if (passo === 5) return agendamentoValido;
     return true;
@@ -396,11 +397,9 @@ export default function DisparoDripifyPage() {
                 <div className="rounded-lg p-3" style={{ background: '#efeae2' }}>
                   <div className="max-w-[85%] rounded-2xl rounded-tr-sm px-3.5 py-2 shadow-sm ml-auto" style={{ background: '#d9fdd3' }}>
                     <p className="text-sm text-slate-900 whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: renderMarkdownWhats(mensagemFinal) }} />
-                    {linkBotao && (
-                      <div className="mt-2 pt-2 border-t border-black/10 text-center">
-                        <span className="text-xs text-blue-600 font-bold">{TITULO_BOTAO_PADRAO}</span>
-                      </div>
-                    )}
+                    <div className="mt-2 pt-2 border-t border-black/10 text-center">
+                      <span className="text-xs text-blue-600 font-bold">{TITULO_BOTAO_PADRAO}</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -441,6 +440,11 @@ export default function DisparoDripifyPage() {
                 {midiaPreview && midiaTipo === 'video' && (
                   // eslint-disable-next-line jsx-a11y/media-has-caption
                   <video src={midiaPreview} controls className="mt-3 h-32 rounded-lg border border-gray-200" />
+                )}
+                {!midiaFile && (
+                  <p className="text-xs text-red-500 flex items-center gap-1 mt-2">
+                    <AlertTriangle size={12} /> Envie o arquivo de {midiaTipo === 'imagem' ? 'imagem' : 'vídeo'} pra continuar, ou volte e escolha "Sem Mídia".
+                  </p>
                 )}
               </div>
             )}
@@ -549,11 +553,9 @@ export default function DisparoDripifyPage() {
               <div className="rounded-lg p-3" style={{ background: '#efeae2' }}>
                 <div className="max-w-[85%] rounded-2xl rounded-tr-sm px-3.5 py-2 shadow-sm ml-auto" style={{ background: '#d9fdd3' }}>
                   <p className="text-sm text-slate-900 whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: renderMarkdownWhats(mensagemFinal) }} />
-                  {linkBotao && (
-                    <div className="mt-2 pt-2 border-t border-black/10 text-center">
-                      <span className="text-xs text-blue-600 font-bold">{TITULO_BOTAO_PADRAO}</span>
-                    </div>
-                  )}
+                  <div className="mt-2 pt-2 border-t border-black/10 text-center">
+                    <span className="text-xs text-blue-600 font-bold">{TITULO_BOTAO_PADRAO}</span>
+                  </div>
                 </div>
               </div>
             </div>
