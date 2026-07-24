@@ -84,6 +84,7 @@ export interface CreateDripifyPayload {
   canal_id?: string | null;
   foto_perfil_url?: string | null;
   mensagem_texto: string;
+  mensagem_nucleo?: string;
   link_botao?: string | null;
   midia_tipo?: MidiaTipoDM;
   midia_url?: string | null;
@@ -97,3 +98,9 @@ export interface CreateDripifyPayload {
 export async function createDripifyDM(data: CreateDripifyPayload): Promise<CampanhaDM> {
   return api.post('/disparo-massa/dripify', data).then((r) => r.data);
 }
+
+export const useCampanhasDripifyDM = () => useQuery<CampanhaDM[]>({
+  queryKey: ['dm-dripify'],
+  queryFn: () => api.get('/disparo-massa/dripify').then((r) => r.data),
+  refetchInterval: 15_000,
+});
