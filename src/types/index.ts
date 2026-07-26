@@ -204,7 +204,55 @@ export interface Tenant {
   slug: string;
   status_assinatura: SubscriptionStatus;
   criado_em: string;
+  usuarios_inclusos?: number;
+  valor_mensalidade_base?: string;
+  valor_usuario_adicional?: string;
+  assinatura_bloqueada?: boolean;
+  proxima_cobranca_em?: string | null;
   _count?: { users: number; leads: number; dm_campanhas?: number };
+}
+
+export type MensalidadeFaturaStatus = 'pendente' | 'pago' | 'cancelado';
+
+export interface MensalidadeFatura {
+  id: string;
+  tenant_id: string;
+  competencia: string;
+  usuarios_cobrados: number;
+  usuarios_extras: number;
+  valor_total: string;
+  status: MensalidadeFaturaStatus;
+  vencimento: string;
+  pago_em: string | null;
+  pix_copia_cola: string | null;
+  criado_em: string;
+}
+
+export interface MensalidadeResumo {
+  usuarios_inclusos: number;
+  valor_mensalidade_base: string;
+  valor_usuario_adicional: string;
+  usuarios_atual: number;
+  usuarios_extras_atual: number;
+  valor_mensal_atual: number;
+  assinatura_bloqueada: boolean;
+  proxima_cobranca_em: string | null;
+  fatura_pendente?: MensalidadeFatura | null;
+  faturas?: MensalidadeFatura[];
+}
+
+export interface CampanhaResumoTenant {
+  id: string;
+  nome: string;
+  tipo: 'proprio' | 'dripfy';
+  status: StatusCampanhaDM;
+  prioridade: PrioridadeDM;
+  total_contatos: number;
+  enviados: number;
+  entregues: number;
+  falhas: number;
+  criado_em: string;
+  agendado_para: string | null;
 }
 
 export interface PaginatedResponse<T> {

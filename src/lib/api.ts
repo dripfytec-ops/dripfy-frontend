@@ -12,6 +12,8 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+export const ASSINATURA_BLOQUEADA_EVENT = 'assinatura-bloqueada';
+
 api.interceptors.response.use(
   (res) => res,
   (error) => {
@@ -19,6 +21,11 @@ api.interceptors.response.use(
       Cookies.remove('dripfy_token');
       Cookies.remove('dripfy_user');
       if (typeof window !== 'undefined') window.location.href = '/login';
+    }
+    // Ação de escrita bloqueada por mensalidade em atraso (ver AssinaturaGuard
+    // no backend) — dispara um popup global em vez do toast de erro padrão.
+    if (error.response?.status === 402 && error.response?.data?.code === 'ASSINATURA_ATRASADA') {
+      if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(ASSINATURA_BLOQUEADA_EVENT));
     }
     return Promise.reject(error);
   },

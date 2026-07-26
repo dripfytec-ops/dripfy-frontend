@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useForm } from 'react-hook-form';
@@ -7,19 +7,15 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
 import {
-  Plus, X, Building2, Users, LayoutList, Settings, LogIn,
-  CheckCircle2, XCircle, KeyRound, Smartphone, Wallet, ArrowUpCircle, ArrowDownCircle, SlidersHorizontal,
+  Plus, X, Building2, Search, LogIn, ChevronLeft, ChevronRight,
+  CheckCircle2, XCircle, KeyRound, Smartphone, Wallet, ArrowUpCircle, ArrowDownCircle,
+  SlidersHorizontal, AlertTriangle, Megaphone, Users as UsersIcon,
 } from 'lucide-react';
 import api from '@/lib/api';
 import { auth } from '@/lib/auth';
-import { Tenant, CreditoTransacaoTipo } from '@/types';
+import { Tenant, CreditoTransacaoTipo, MensalidadeFaturaStatus } from '@/types';
 import { useExtratoCreditosTenant } from '@/lib/financeiro-api';
-
-const TIPO_CONFIG: Record<CreditoTransacaoTipo, { label: string; icon: React.ElementType; className: string }> = {
-  compra: { label: 'Compra', icon: ArrowUpCircle, className: 'text-green-600' },
-  consumo: { label: 'Consumo', icon: ArrowDownCircle, className: 'text-red-600' },
-  ajuste: { label: 'Ajuste', icon: SlidersHorizontal, className: 'text-blue-600' },
-};
+import { useMensalidadeTenant, useCampanhasTenant, useConfirmarPagamentoMensalidade, useAtualizarPlano } from '@/lib/assinatura-api';
 
 const schema = z.object({
   nome_empresa: z.string().min(2),
@@ -44,20 +40,62 @@ const ROLE_LABEL: Record<string, string> = {
   atendente: 'Atendente',
 };
 
+const CREDITO_TIPO_CONFIG: Record<CreditoTransacaoTipo, { label: string; icon: React.ElementType; className: string }> = {
+  compra: { label: 'Compra', icon: ArrowUpCircle, className: 'text-green-600' },
+  consumo: { label: 'Consumo', icon: ArrowDownCircle, className: 'text-red-600' },
+  ajuste: { label: 'Ajuste', icon: SlidersHorizontal, className: 'text-blue-600' },
+};
+
+const FATURA_STATUS_CONFIG: Record<MensalidadeFaturaStatus, { label: string; className: string }> = {
+  pendente: { label: 'Pendente', className: 'bg-amber-100 text-amber-700' },
+  pago: { label: 'Pago', className: 'bg-green-100 text-green-700' },
+  cancelado: { label: 'Cancelado', className: 'bg-gray-100 text-gray-500' },
+};
+
+const CAMPANHA_STATUS_LABEL: Record<string, string> = {
+  rascunho: 'Rascunho', agendada: 'Agendada', em_andamento: 'Em Andamento', concluida: 'Concluída',
+  pausada: 'Pausada', aguardando_recarga: 'Aguardando Recarga', aguardando_pagamento: 'Aguardando Pagamento',
+};
+
 type TenantDetail = {
   id: string;
   nome_empresa: string;
   slug: string;
   status_assinatura: string;
+  criado_em: string;
+  assinatura_bloqueada: boolean;
   users: Array<{ id: string; nome: string; email: string; role: string; ativo: boolean }>;
   dm_canais: Array<{ id: string; nome: string; phone_number_id: string; ativo: boolean }>;
   _count: { leads: number; dm_campanhas: number };
 };
 
+function formatarData(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function formatarMoeda(valor: string | number): string {
+  return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+const TABS = [
+  { key: 'resumo', label: 'Resumo' },
+  { key: 'dados', label: 'Dados Cadastrais' },
+  { key: 'conta-corrente', label: 'Conta Corrente' },
+  { key: 'historico', label: 'Histórico' },
+  { key: 'disparos', label: 'Disparos' },
+] as const;
+type TabKey = typeof TABS[number]['key'];
+
+const PAGE_SIZE = 7;
+
 export default function TenantsPage() {
   const router = useRouter();
   const [modalOpen, setModalOpen] = useState(false);
-  const [detailTenantId, setDetailTenantId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<TabKey>('resumo');
+  const [busca, setBusca] = useState('');
+  const [pagina, setPagina] = useState(1);
   const [resetingUserId, setResetingUserId] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState('');
   const [impersonatingId, setImpersonatingId] = useState<string | null>(null);
@@ -84,13 +122,29 @@ export default function TenantsPage() {
     queryFn: async () => (await api.get('/tenants')).data,
   });
 
+  const tenantsFiltrados = useMemo(() => {
+    const termo = busca.trim().toLowerCase();
+    if (!termo) return tenants;
+    return tenants.filter((t) => t.nome_empresa.toLowerCase().includes(termo) || t.slug.toLowerCase().includes(termo));
+  }, [tenants, busca]);
+
+  const totalPaginas = Math.max(1, Math.ceil(tenantsFiltrados.length / PAGE_SIZE));
+  const paginaAtual = Math.min(pagina, totalPaginas);
+  const tenantsPagina = tenantsFiltrados.slice((paginaAtual - 1) * PAGE_SIZE, paginaAtual * PAGE_SIZE);
+
   const { data: tenantDetail, isLoading: detailLoading } = useQuery<TenantDetail>({
-    queryKey: ['tenant-detail', detailTenantId],
-    queryFn: async () => (await api.get(`/tenants/${detailTenantId}`)).data,
-    enabled: !!detailTenantId,
+    queryKey: ['tenant-detail', selectedId],
+    queryFn: async () => (await api.get(`/tenants/${selectedId}`)).data,
+    enabled: !!selectedId,
   });
 
-  const { data: extrato, isLoading: extratoLoading } = useExtratoCreditosTenant(detailTenantId);
+  const { data: extrato, isLoading: extratoLoading } = useExtratoCreditosTenant(selectedId);
+  const { data: mensalidade, isLoading: mensalidadeLoading } = useMensalidadeTenant(selectedId);
+  const { data: campanhas = [], isLoading: campanhasLoading } = useCampanhasTenant(selectedId);
+  const confirmarPagamento = useConfirmarPagamentoMensalidade(selectedId || '');
+  const atualizarPlano = useAtualizarPlano(selectedId || '');
+  const [editandoPlano, setEditandoPlano] = useState(false);
+  const [planoForm, setPlanoForm] = useState({ usuarios_inclusos: '', valor_mensalidade_base: '', valor_usuario_adicional: '' });
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -110,7 +164,7 @@ export default function TenantsPage() {
   const toggleUser = useMutation({
     mutationFn: (userId: string) => api.patch(`/users/${userId}/toggle`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tenant-detail', detailTenantId] });
+      queryClient.invalidateQueries({ queryKey: ['tenant-detail', selectedId] });
       toast.success('Status atualizado.');
     },
     onError: () => toast.error('Erro ao atualizar status.'),
@@ -133,80 +187,546 @@ export default function TenantsPage() {
     onSuccess: () => {
       toast.success('Status do tenant atualizado.');
       queryClient.invalidateQueries({ queryKey: ['tenants'] });
-      queryClient.invalidateQueries({ queryKey: ['tenant-detail', detailTenantId] });
+      queryClient.invalidateQueries({ queryKey: ['tenant-detail', selectedId] });
     },
     onError: () => toast.error('Erro ao atualizar status.'),
   });
 
-  const closeDetail = () => {
-    setDetailTenantId(null);
+  const selecionarTenant = (id: string) => {
+    setSelectedId(id);
+    setActiveTab('resumo');
     setResetingUserId(null);
-    setNewPassword('');
+    setEditandoPlano(false);
   };
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Lojistas</h1>
-          <p className="text-gray-500 text-sm">Gerencie os tenants da plataforma</p>
-        </div>
-        <button onClick={() => setModalOpen(true)} className="btn-primary flex items-center gap-2">
-          <Plus size={16} /> Novo Lojista
-        </button>
-      </div>
+    <div className="p-6 h-[calc(100vh-56px)] flex flex-col">
+      <div className="flex-1 flex gap-4 min-h-0">
+        {/* Coluna esquerda: lista de lojistas */}
+        <div className="w-[380px] flex-shrink-0 flex flex-col bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-4 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h1 className="font-bold text-gray-900">Lojistas</h1>
+            <button onClick={() => setModalOpen(true)} className="btn-primary flex items-center gap-1.5 text-xs px-3 py-1.5">
+              <Plus size={14} /> Novo
+            </button>
+          </div>
+          <div className="px-4 py-3 border-b border-gray-100">
+            <div className="relative">
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                value={busca}
+                onChange={(e) => { setBusca(e.target.value); setPagina(1); }}
+                placeholder="Buscar lojista..."
+                className="input pl-8 text-sm py-2"
+              />
+            </div>
+          </div>
 
-      {isLoading ? (
-        <div className="flex justify-center p-12">
-          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-        </div>
-      ) : (
-        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-          {tenants.map((tenant) => (
-            <div key={tenant.id} className="card p-5">
-              <div className="flex items-start justify-between mb-3">
-                <div className="w-10 h-10 bg-brand/10 rounded-xl flex items-center justify-center">
-                  <Building2 size={20} className="text-brand" />
-                </div>
-                <span className={`text-xs font-medium px-2 py-1 rounded-full ${STATUS_BADGE[tenant.status_assinatura]}`}>
-                  {tenant.status_assinatura}
-                </span>
+          <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
+            {isLoading && (
+              <div className="flex justify-center p-8">
+                <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
               </div>
-              <h3 className="font-semibold text-gray-900">{tenant.nome_empresa}</h3>
-              <p className="text-gray-400 text-xs font-mono mt-0.5">/{tenant.slug}</p>
-              <div className="flex items-center gap-4 mt-3 pt-3 border-t border-gray-100">
-                <div className="flex items-center gap-1 text-xs text-gray-500">
-                  <Users size={13} />
-                  {tenant._count?.users || 0} usuários
-                </div>
-                <div className="flex items-center gap-1 text-xs text-gray-500">
-                  <LayoutList size={13} />
-                  {tenant._count?.leads || 0} leads
-                </div>
-                <button
-                  onClick={() => setDetailTenantId(tenant.id)}
-                  className="ml-auto flex items-center gap-1 text-xs text-primary font-medium hover:underline"
-                >
-                  <Settings size={12} /> Gerenciar
-                </button>
-              </div>
+            )}
+            {!isLoading && tenantsPagina.length === 0 && (
+              <p className="text-center text-gray-400 text-sm py-8">Nenhum lojista encontrado.</p>
+            )}
+            {!isLoading && tenantsPagina.map((tenant) => (
               <button
-                onClick={() => handleEnterAsTenant(tenant.id)}
-                disabled={impersonatingId === tenant.id}
-                className="w-full mt-3 flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                key={tenant.id}
+                onClick={() => selecionarTenant(tenant.id)}
+                className={`w-full text-left px-4 py-3 flex items-center gap-3 transition-colors ${
+                  selectedId === tenant.id ? 'bg-blue-50' : 'hover:bg-gray-50'
+                }`}
               >
-                <LogIn size={12} />
-                {impersonatingId === tenant.id ? 'Entrando...' : 'Entrar como este tenant'}
+                <div className="w-9 h-9 rounded-full bg-brand/10 flex items-center justify-center flex-shrink-0 text-xs font-bold text-brand">
+                  {tenant.nome_empresa.slice(0, 2).toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-gray-900 truncate">{tenant.nome_empresa}</p>
+                  <p className="text-xs text-gray-400 truncate">/{tenant.slug}</p>
+                </div>
+                <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                  <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${STATUS_BADGE[tenant.status_assinatura]}`}>
+                    {tenant.status_assinatura}
+                  </span>
+                  {tenant.assinatura_bloqueada && (
+                    <span className="flex items-center gap-0.5 text-[10px] text-red-600 font-medium">
+                      <AlertTriangle size={10} /> Em atraso
+                    </span>
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
+            <span>
+              {tenantsFiltrados.length === 0 ? '0 lojistas' : `Mostrando ${(paginaAtual - 1) * PAGE_SIZE + 1} a ${Math.min(paginaAtual * PAGE_SIZE, tenantsFiltrados.length)} de ${tenantsFiltrados.length}`}
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPagina((p) => Math.max(1, p - 1))}
+                disabled={paginaAtual <= 1}
+                className="p-1 rounded-md border border-gray-200 disabled:opacity-40 hover:bg-gray-50"
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <span className="px-1.5">{paginaAtual}/{totalPaginas}</span>
+              <button
+                onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
+                disabled={paginaAtual >= totalPaginas}
+                className="p-1 rounded-md border border-gray-200 disabled:opacity-40 hover:bg-gray-50"
+              >
+                <ChevronRight size={14} />
               </button>
             </div>
-          ))}
-          {tenants.length === 0 && (
-            <div className="col-span-3 card p-12 text-center text-gray-400">
-              Nenhum lojista cadastrado ainda.
+          </div>
+        </div>
+
+        {/* Coluna direita: detalhe do lojista selecionado */}
+        <div className="flex-1 min-w-0 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+          {!selectedId && (
+            <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
+              Selecione um lojista pra ver os detalhes.
             </div>
           )}
+
+          {selectedId && (
+            <>
+              <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between flex-wrap gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-brand/10 flex items-center justify-center text-sm font-bold text-brand flex-shrink-0">
+                    {tenantDetail?.nome_empresa.slice(0, 2).toUpperCase() || '...'}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="font-bold text-gray-900">{tenantDetail?.nome_empresa || '...'}</h2>
+                      {tenantDetail && (
+                        <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${STATUS_BADGE[tenantDetail.status_assinatura]}`}>
+                          {tenantDetail.status_assinatura}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-gray-400 text-xs font-mono">/{tenantDetail?.slug}</p>
+                    <p className="text-gray-400 text-xs">Cadastrado em {formatarData(tenantDetail?.criado_em)}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleEnterAsTenant(selectedId)}
+                  disabled={impersonatingId === selectedId}
+                  className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                >
+                  <LogIn size={13} />
+                  {impersonatingId === selectedId ? 'Entrando...' : 'Entrar como este tenant'}
+                </button>
+              </div>
+
+              {tenantDetail?.assinatura_bloqueada ?? mensalidade?.assinatura_bloqueada ? (
+                <div className="mx-6 mt-4 flex items-center gap-2 bg-red-50 border border-red-100 text-red-700 text-xs font-medium px-3 py-2.5 rounded-lg">
+                  <AlertTriangle size={14} /> Assinatura em atraso — funcionalidades do lojista estão bloqueadas até a confirmação do pagamento.
+                </div>
+              ) : null}
+
+              <div className="px-6 border-b border-gray-100 flex items-center gap-1 mt-4">
+                {TABS.map((tab) => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setActiveTab(tab.key)}
+                    className={`px-3 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                      activeTab === tab.key ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6">
+                {activeTab === 'resumo' && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Status da Assinatura</p>
+                    <div className="flex gap-2 mb-5">
+                      {(['trial', 'ativo', 'inativo'] as const).map((s) => (
+                        <button
+                          key={s}
+                          onClick={() => updateTenantStatus.mutate({ id: selectedId, status: s })}
+                          disabled={updateTenantStatus.isPending}
+                          className={`flex-1 text-xs py-1.5 rounded-lg font-medium border transition-colors ${
+                            tenantDetail?.status_assinatura === s
+                              ? 'bg-primary text-white border-primary'
+                              : 'bg-white text-gray-600 border-gray-200 hover:border-primary hover:text-primary'
+                          }`}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div className="border border-gray-100 rounded-xl p-3">
+                        <div className="flex items-center gap-1.5 text-gray-400 text-xs mb-1"><UsersIcon size={12} /> Usuários</div>
+                        <p className="text-lg font-bold text-gray-900">{tenantDetail?.users.length ?? '—'}</p>
+                      </div>
+                      <div className="border border-gray-100 rounded-xl p-3">
+                        <div className="flex items-center gap-1.5 text-gray-400 text-xs mb-1"><Megaphone size={12} /> Campanhas</div>
+                        <p className="text-lg font-bold text-gray-900">{tenantDetail?._count.dm_campanhas ?? '—'}</p>
+                      </div>
+                      <div className="border border-gray-100 rounded-xl p-3">
+                        <div className="flex items-center gap-1.5 text-gray-400 text-xs mb-1"><Wallet size={12} /> Créditos Dripfy</div>
+                        <p className="text-lg font-bold text-gray-900">{extratoLoading ? '—' : (extrato?.creditos_saldo ?? 0)}</p>
+                      </div>
+                      <div className="border border-gray-100 rounded-xl p-3">
+                        <div className="flex items-center gap-1.5 text-gray-400 text-xs mb-1"><Building2 size={12} /> Leads</div>
+                        <p className="text-lg font-bold text-gray-900">{tenantDetail?._count.leads ?? '—'}</p>
+                      </div>
+                    </div>
+
+                    {mensalidade && (
+                      <div className="mt-5 border border-gray-100 rounded-xl p-4">
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Mensalidade</p>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-2xl font-bold text-gray-900">{formatarMoeda(mensalidade.valor_mensal_atual)}<span className="text-sm font-normal text-gray-400">/mês</span></p>
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              {mensalidade.usuarios_atual} usuário(s) — {mensalidade.usuarios_extras_atual > 0 ? `${mensalidade.usuarios_extras_atual} extra(s) além dos ${mensalidade.usuarios_inclusos} inclusos` : `dentro dos ${mensalidade.usuarios_inclusos} inclusos`}
+                            </p>
+                          </div>
+                          {mensalidade.proxima_cobranca_em && (
+                            <div className="text-right">
+                              <p className="text-xs text-gray-400">Próxima cobrança</p>
+                              <p className="text-sm font-medium text-gray-700">{formatarData(mensalidade.proxima_cobranca_em)}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {activeTab === 'dados' && (
+                  <div className="space-y-5">
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Plano Contratado</p>
+                        {mensalidade && !editandoPlano && (
+                          <button
+                            onClick={() => {
+                              setPlanoForm({
+                                usuarios_inclusos: String(mensalidade.usuarios_inclusos),
+                                valor_mensalidade_base: String(mensalidade.valor_mensalidade_base),
+                                valor_usuario_adicional: String(mensalidade.valor_usuario_adicional),
+                              });
+                              setEditandoPlano(true);
+                            }}
+                            className="text-xs font-medium text-primary hover:underline"
+                          >
+                            Editar Plano
+                          </button>
+                        )}
+                      </div>
+                      {mensalidadeLoading || !mensalidade ? (
+                        <p className="text-gray-400 text-sm">Carregando...</p>
+                      ) : editandoPlano ? (
+                        <div className="space-y-3 border border-gray-100 rounded-xl p-4">
+                          <div className="grid grid-cols-3 gap-3">
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">Usuários inclusos</label>
+                              <input
+                                type="number" min={0}
+                                value={planoForm.usuarios_inclusos}
+                                onChange={(e) => setPlanoForm((p) => ({ ...p, usuarios_inclusos: e.target.value }))}
+                                className="input text-sm py-1.5"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">Valor base (R$)</label>
+                              <input
+                                type="number" min={0} step="0.01"
+                                value={planoForm.valor_mensalidade_base}
+                                onChange={(e) => setPlanoForm((p) => ({ ...p, valor_mensalidade_base: e.target.value }))}
+                                className="input text-sm py-1.5"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">Valor/usuário extra (R$)</label>
+                              <input
+                                type="number" min={0} step="0.01"
+                                value={planoForm.valor_usuario_adicional}
+                                onChange={(e) => setPlanoForm((p) => ({ ...p, valor_usuario_adicional: e.target.value }))}
+                                className="input text-sm py-1.5"
+                              />
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button onClick={() => setEditandoPlano(false)} className="btn-outline text-xs px-3 py-1.5">Cancelar</button>
+                            <button
+                              onClick={() => {
+                                atualizarPlano.mutate({
+                                  usuarios_inclusos: Number(planoForm.usuarios_inclusos),
+                                  valor_mensalidade_base: Number(planoForm.valor_mensalidade_base),
+                                  valor_usuario_adicional: Number(planoForm.valor_usuario_adicional),
+                                }, {
+                                  onSuccess: () => { toast.success('Plano atualizado.'); setEditandoPlano(false); },
+                                  onError: () => toast.error('Erro ao atualizar plano.'),
+                                });
+                              }}
+                              disabled={atualizarPlano.isPending}
+                              className="btn-primary text-xs px-3 py-1.5"
+                            >
+                              {atualizarPlano.isPending ? 'Salvando...' : 'Salvar'}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div><span className="text-gray-400">Pacote Start</span><p className="font-medium text-gray-800">{formatarMoeda(mensalidade.valor_mensalidade_base)} ({mensalidade.usuarios_inclusos} usuários inclusos)</p></div>
+                          <div><span className="text-gray-400">Usuário adicional</span><p className="font-medium text-gray-800">{formatarMoeda(mensalidade.valor_usuario_adicional)}/usuário</p></div>
+                          <div><span className="text-gray-400">Usuários atuais</span><p className="font-medium text-gray-800">{mensalidade.usuarios_atual} ({mensalidade.usuarios_extras_atual} extra(s))</p></div>
+                          <div><span className="text-gray-400">Valor mensal calculado</span><p className="font-medium text-gray-800">{formatarMoeda(mensalidade.valor_mensal_atual)}</p></div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Usuários</p>
+                      {detailLoading ? (
+                        <div className="flex justify-center p-6">
+                          <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        </div>
+                      ) : tenantDetail?.users.length === 0 ? (
+                        <p className="text-gray-400 text-sm text-center py-4">Nenhum usuário cadastrado.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {tenantDetail?.users.map((user) => (
+                            <div key={user.id} className="border border-gray-100 rounded-lg p-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <p className="text-sm font-medium text-gray-900 truncate">{user.nome}</p>
+                                    <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
+                                      {ROLE_LABEL[user.role] || user.role}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                                </div>
+                                <div className="flex items-center gap-2 ml-2 flex-shrink-0">
+                                  <button
+                                    onClick={() => toggleUser.mutate(user.id)}
+                                    disabled={toggleUser.isPending}
+                                    className={`text-xs px-2 py-1 rounded-lg font-medium flex items-center gap-1 transition-colors ${
+                                      user.ativo
+                                        ? 'text-green-700 bg-green-50 hover:bg-red-50 hover:text-red-600'
+                                        : 'text-red-600 bg-red-50 hover:bg-green-50 hover:text-green-700'
+                                    }`}
+                                    title={user.ativo ? 'Clique para desativar' : 'Clique para ativar'}
+                                  >
+                                    {user.ativo ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
+                                    {user.ativo ? 'Ativo' : 'Inativo'}
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setResetingUserId(resetingUserId === user.id ? null : user.id);
+                                      setNewPassword('');
+                                    }}
+                                    className="p-1.5 text-gray-400 hover:text-primary hover:bg-blue-50 rounded-lg transition-colors"
+                                    title="Redefinir senha"
+                                  >
+                                    <KeyRound size={14} />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {resetingUserId === user.id && (
+                                <div className="mt-2 pt-2 border-t border-gray-100 flex gap-2">
+                                  <input
+                                    type="password"
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    className="input flex-1 text-sm py-1.5"
+                                    placeholder="Nova senha (mín. 8 caracteres)"
+                                    autoFocus
+                                  />
+                                  <button
+                                    onClick={() => {
+                                      if (newPassword.length < 8) { toast.error('Mínimo 8 caracteres.'); return; }
+                                      resetPassword.mutate({ userId: user.id, password: newPassword });
+                                    }}
+                                    disabled={resetPassword.isPending}
+                                    className="btn-primary text-xs px-3 py-1.5 whitespace-nowrap"
+                                  >
+                                    {resetPassword.isPending ? '...' : 'Salvar'}
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {tenantDetail && tenantDetail.dm_canais.length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Canais WhatsApp</p>
+                        <div className="space-y-2">
+                          {tenantDetail.dm_canais.map((canal) => (
+                            <div key={canal.id} className="flex items-center gap-3 p-2.5 bg-gray-50 rounded-lg">
+                              <div className={`w-2 h-2 rounded-full flex-shrink-0 ${canal.ativo ? 'bg-green-400' : 'bg-gray-300'}`} />
+                              <Smartphone size={14} className="text-gray-400 flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-800 truncate">{canal.nome}</p>
+                                <p className="text-xs text-gray-400 font-mono truncate">{canal.phone_number_id}</p>
+                              </div>
+                              <span className={`text-xs flex-shrink-0 ${canal.ativo ? 'text-green-600' : 'text-gray-400'}`}>
+                                {canal.ativo ? 'Ativo' : 'Inativo'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {activeTab === 'conta-corrente' && (
+                  <div>
+                    <div className="flex items-center gap-3 p-3 bg-amber-50 rounded-lg mb-4">
+                      <Wallet size={18} className="text-amber-500" />
+                      <div>
+                        <p className="text-xs text-gray-500">Saldo de créditos Dripfy</p>
+                        <p className="text-lg font-bold text-gray-900">{extratoLoading ? '—' : `${extrato?.creditos_saldo ?? 0} créditos`}</p>
+                      </div>
+                    </div>
+                    {extratoLoading ? (
+                      <div className="flex justify-center p-6">
+                        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                      </div>
+                    ) : extrato && extrato.transacoes.length === 0 ? (
+                      <p className="text-gray-400 text-sm text-center py-4">Nenhuma movimentação ainda.</p>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {extrato?.transacoes.map((t) => {
+                          const cfg = CREDITO_TIPO_CONFIG[t.tipo];
+                          const Icon = cfg.icon;
+                          return (
+                            <div key={t.id} className="flex items-center justify-between text-xs border border-gray-100 rounded-lg px-3 py-2.5">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <Icon size={12} className={`${cfg.className} flex-shrink-0`} />
+                                <span className="text-gray-600 truncate">{t.descricao}</span>
+                              </div>
+                              <span className={`font-mono font-medium flex-shrink-0 ml-2 ${t.quantidade >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {t.quantidade >= 0 ? '+' : ''}{t.quantidade}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {activeTab === 'historico' && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Faturas de Mensalidade</p>
+                    {mensalidadeLoading ? (
+                      <div className="flex justify-center p-6">
+                        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                      </div>
+                    ) : !mensalidade?.faturas || mensalidade.faturas.length === 0 ? (
+                      <p className="text-gray-400 text-sm text-center py-4">Nenhuma fatura gerada ainda.</p>
+                    ) : (
+                      <div className="border border-gray-100 rounded-xl overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="bg-gray-50 border-b border-gray-100 text-xs text-gray-500 uppercase tracking-wide">
+                              <th className="text-left px-4 py-2.5 font-medium">Competência</th>
+                              <th className="text-left px-4 py-2.5 font-medium">Usuários</th>
+                              <th className="text-left px-4 py-2.5 font-medium">Vencimento</th>
+                              <th className="text-right px-4 py-2.5 font-medium">Valor</th>
+                              <th className="text-left px-4 py-2.5 font-medium">Status</th>
+                              <th className="text-right px-4 py-2.5 font-medium">Ação</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-50">
+                            {mensalidade.faturas.map((f) => {
+                              const cfg = FATURA_STATUS_CONFIG[f.status];
+                              const vencida = f.status === 'pendente' && new Date(f.vencimento) < new Date();
+                              return (
+                                <tr key={f.id}>
+                                  <td className="px-4 py-2.5 font-medium text-gray-800">{f.competencia}</td>
+                                  <td className="px-4 py-2.5 text-gray-500">{f.usuarios_cobrados} ({f.usuarios_extras} extra)</td>
+                                  <td className="px-4 py-2.5 text-gray-500">{formatarData(f.vencimento)}</td>
+                                  <td className="px-4 py-2.5 text-right font-mono text-gray-700">{formatarMoeda(f.valor_total)}</td>
+                                  <td className="px-4 py-2.5">
+                                    <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${vencida ? 'bg-red-100 text-red-700' : cfg.className}`}>
+                                      {vencida ? 'Atrasado' : cfg.label}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-2.5 text-right">
+                                    {f.status === 'pendente' && (
+                                      <button
+                                        onClick={() => confirmarPagamento.mutate(f.id)}
+                                        disabled={confirmarPagamento.isPending}
+                                        className="text-xs font-medium text-primary hover:underline disabled:opacity-50"
+                                      >
+                                        Confirmar Pagamento
+                                      </button>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {activeTab === 'disparos' && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Campanhas</p>
+                    {campanhasLoading ? (
+                      <div className="flex justify-center p-6">
+                        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                      </div>
+                    ) : campanhas.length === 0 ? (
+                      <p className="text-gray-400 text-sm text-center py-4">Nenhuma campanha criada ainda.</p>
+                    ) : (
+                      <div className="border border-gray-100 rounded-xl overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="bg-gray-50 border-b border-gray-100 text-xs text-gray-500 uppercase tracking-wide">
+                              <th className="text-left px-4 py-2.5 font-medium">Campanha</th>
+                              <th className="text-left px-4 py-2.5 font-medium">Tipo</th>
+                              <th className="text-left px-4 py-2.5 font-medium">Status</th>
+                              <th className="text-right px-4 py-2.5 font-medium">Contatos</th>
+                              <th className="text-right px-4 py-2.5 font-medium">Entregues</th>
+                              <th className="text-left px-4 py-2.5 font-medium">Criada em</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-50">
+                            {campanhas.map((c) => (
+                              <tr key={c.id}>
+                                <td className="px-4 py-2.5 font-medium text-gray-800">{c.nome}</td>
+                                <td className="px-4 py-2.5 text-gray-500 capitalize">{c.tipo}</td>
+                                <td className="px-4 py-2.5 text-gray-500">{CAMPANHA_STATUS_LABEL[c.status] || c.status}</td>
+                                <td className="px-4 py-2.5 text-right font-mono text-gray-700">{c.total_contatos}</td>
+                                <td className="px-4 py-2.5 text-right font-mono text-gray-700">{c.entregues}</td>
+                                <td className="px-4 py-2.5 text-gray-500">{formatarData(c.criado_em)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Modal Novo Lojista */}
       {modalOpen && (
@@ -250,201 +770,6 @@ export default function TenantsPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* Painel de Detalhes do Tenant */}
-      {detailTenantId && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="card w-full max-w-lg p-6 max-h-[85vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="font-bold text-gray-900 text-lg">{tenantDetail?.nome_empresa || '...'}</h2>
-                <p className="text-gray-400 text-xs font-mono">/{tenantDetail?.slug}</p>
-              </div>
-              <button onClick={closeDetail}>
-                <X size={20} className="text-gray-400" />
-              </button>
-            </div>
-
-            {/* Status do Tenant */}
-            {tenantDetail && (
-              <div className="mb-5 p-3 bg-gray-50 rounded-lg">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Status da Assinatura</p>
-                <div className="flex gap-2">
-                  {(['trial', 'ativo', 'inativo'] as const).map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => updateTenantStatus.mutate({ id: detailTenantId, status: s })}
-                      disabled={updateTenantStatus.isPending}
-                      className={`flex-1 text-xs py-1.5 rounded-lg font-medium border transition-colors ${
-                        tenantDetail.status_assinatura === s
-                          ? 'bg-primary text-white border-primary'
-                          : 'bg-white text-gray-600 border-gray-200 hover:border-primary hover:text-primary'
-                      }`}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Usuários */}
-            <div className="mb-5">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Usuários</p>
-              {detailLoading ? (
-                <div className="flex justify-center p-6">
-                  <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                </div>
-              ) : tenantDetail?.users.length === 0 ? (
-                <p className="text-gray-400 text-sm text-center py-4">Nenhum usuário cadastrado.</p>
-              ) : (
-                <div className="space-y-2">
-                  {tenantDetail?.users.map((user) => (
-                    <div key={user.id} className="border border-gray-100 rounded-lg p-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm font-medium text-gray-900 truncate">{user.nome}</p>
-                            <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
-                              {ROLE_LABEL[user.role] || user.role}
-                            </span>
-                          </div>
-                          <p className="text-xs text-gray-500 truncate">{user.email}</p>
-                        </div>
-                        <div className="flex items-center gap-2 ml-2 flex-shrink-0">
-                          <button
-                            onClick={() => toggleUser.mutate(user.id)}
-                            disabled={toggleUser.isPending}
-                            className={`text-xs px-2 py-1 rounded-lg font-medium flex items-center gap-1 transition-colors ${
-                              user.ativo
-                                ? 'text-green-700 bg-green-50 hover:bg-red-50 hover:text-red-600'
-                                : 'text-red-600 bg-red-50 hover:bg-green-50 hover:text-green-700'
-                            }`}
-                            title={user.ativo ? 'Clique para desativar' : 'Clique para ativar'}
-                          >
-                            {user.ativo ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
-                            {user.ativo ? 'Ativo' : 'Inativo'}
-                          </button>
-                          <button
-                            onClick={() => {
-                              setResetingUserId(resetingUserId === user.id ? null : user.id);
-                              setNewPassword('');
-                            }}
-                            className="p-1.5 text-gray-400 hover:text-primary hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Redefinir senha"
-                          >
-                            <KeyRound size={14} />
-                          </button>
-                        </div>
-                      </div>
-
-                      {resetingUserId === user.id && (
-                        <div className="mt-2 pt-2 border-t border-gray-100 flex gap-2">
-                          <input
-                            type="password"
-                            value={newPassword}
-                            onChange={(e) => setNewPassword(e.target.value)}
-                            className="input flex-1 text-sm py-1.5"
-                            placeholder="Nova senha (mín. 8 caracteres)"
-                            autoFocus
-                          />
-                          <button
-                            onClick={() => {
-                              if (newPassword.length < 8) { toast.error('Mínimo 8 caracteres.'); return; }
-                              resetPassword.mutate({ userId: user.id, password: newPassword });
-                            }}
-                            disabled={resetPassword.isPending}
-                            className="btn-primary text-xs px-3 py-1.5 whitespace-nowrap"
-                          >
-                            {resetPassword.isPending ? '...' : 'Salvar'}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Canais WhatsApp */}
-            {tenantDetail && tenantDetail.dm_canais.length > 0 && (
-              <div className="mb-5">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Canais WhatsApp</p>
-                <div className="space-y-2">
-                  {tenantDetail.dm_canais.map((canal) => (
-                    <div key={canal.id} className="flex items-center gap-3 p-2.5 bg-gray-50 rounded-lg">
-                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${canal.ativo ? 'bg-green-400' : 'bg-gray-300'}`} />
-                      <Smartphone size={14} className="text-gray-400 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-800 truncate">{canal.nome}</p>
-                        <p className="text-xs text-gray-400 font-mono truncate">{canal.phone_number_id}</p>
-                      </div>
-                      <span className={`text-xs flex-shrink-0 ${canal.ativo ? 'text-green-600' : 'text-gray-400'}`}>
-                        {canal.ativo ? 'Ativo' : 'Inativo'}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Créditos Dripfy */}
-            <div className="mb-5">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Créditos Dripfy</p>
-              {extratoLoading ? (
-                <div className="flex justify-center p-6">
-                  <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                </div>
-              ) : (
-                <>
-                  <div className="flex items-center gap-3 p-3 bg-amber-50 rounded-lg mb-3">
-                    <Wallet size={18} className="text-amber-500" />
-                    <div>
-                      <p className="text-xs text-gray-500">Saldo atual</p>
-                      <p className="text-lg font-bold text-gray-900">{extrato?.creditos_saldo ?? 0} créditos</p>
-                    </div>
-                  </div>
-                  {extrato && extrato.transacoes.length === 0 ? (
-                    <p className="text-gray-400 text-sm text-center py-4">Nenhuma movimentação ainda.</p>
-                  ) : (
-                    <div className="space-y-1.5 max-h-56 overflow-y-auto">
-                      {extrato?.transacoes.map((t) => {
-                        const cfg = TIPO_CONFIG[t.tipo];
-                        const Icon = cfg.icon;
-                        return (
-                          <div key={t.id} className="flex items-center justify-between text-xs border border-gray-100 rounded-lg px-2.5 py-2">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              <Icon size={12} className={`${cfg.className} flex-shrink-0`} />
-                              <span className="text-gray-600 truncate">{t.descricao}</span>
-                            </div>
-                            <span className={`font-mono font-medium flex-shrink-0 ml-2 ${t.quantidade >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                              {t.quantidade >= 0 ? '+' : ''}{t.quantidade}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-
-            {/* Stats */}
-            {tenantDetail && (
-              <div className="pt-4 border-t border-gray-100 flex gap-6">
-                <div className="text-center">
-                  <p className="text-xl font-bold text-gray-900">{tenantDetail._count.leads}</p>
-                  <p className="text-xs text-gray-500">Leads</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-xl font-bold text-gray-900">{tenantDetail._count.dm_campanhas}</p>
-                  <p className="text-xs text-gray-500">Campanhas</p>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       )}

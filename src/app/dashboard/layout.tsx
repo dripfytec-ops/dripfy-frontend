@@ -8,7 +8,7 @@ import { auth } from '@/lib/auth';
 import { User } from '@/types';
 import {
   MessageCircle, Users, Megaphone, Settings, LogOut, ChevronLeft, ChevronRight, ArrowLeftRight,
-  ChevronDown, Building2, Sparkles, Radio, KeyRound, Zap, Tag, MessageSquareText, Wallet,
+  ChevronDown, Building2, Sparkles, Radio, KeyRound, Zap, Tag, MessageSquareText, Wallet, CreditCard,
 } from 'lucide-react';
 import Logo from '@/components/ui/Logo';
 import { getInitials, getAvatarColor } from '@/lib/avatar';
@@ -46,6 +46,7 @@ const NAV_BASE: NavItem[] = [
       { href: '/dashboard/settings/respostas-rapidas', label: 'Respostas Rápidas', icon: Zap },
       { href: '/dashboard/settings/etiquetas', label: 'Etiquetas', icon: Tag },
       { href: '/dashboard/settings/boas-vindas', label: 'Mensagem de Boas Vindas', icon: MessageSquareText },
+      { href: '/dashboard/assinatura', label: 'Assinatura', icon: CreditCard },
     ],
   },
 ];
