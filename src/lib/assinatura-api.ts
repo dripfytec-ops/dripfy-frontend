@@ -48,3 +48,15 @@ export const useConfirmarPagamentoMensalidade = (tenantId: string) => {
     },
   });
 };
+
+// [Master] Confirma manualmente o pagamento de uma cobrança avulsa de usuário extra.
+export const useConfirmarPagamentoAvulso = (tenantId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (cobrancaId: string) => api.patch(`/tenants/${tenantId}/cobrancas-avulsas/${cobrancaId}/confirmar-pagamento`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['assinatura', 'mensalidade', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['tenants'] });
+    },
+  });
+};

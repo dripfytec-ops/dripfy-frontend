@@ -9,6 +9,7 @@ import {
 import api from '@/lib/api';
 import { auth } from '@/lib/auth';
 import { TeamMember } from '@/types';
+import ModalPixFixo from '@/components/financeiro/ModalPixFixo';
 
 const ROLE_LABEL: Record<string, string> = {
   lojista_admin: 'Admin',
@@ -38,13 +39,19 @@ function MemberModal({
       : EMPTY_FORM,
   );
   const [showPw, setShowPw] = useState(false);
+  const [cobrancaPendente, setCobrancaPendente] = useState<{ valor: string; pix_copia_cola: string } | null>(null);
 
   const createMutation = useMutation({
     mutationFn: () => api.post('/users', { nome: form.nome, email: form.email, password: form.password, role: form.role }),
-    onSuccess: () => {
-      toast.success('Vendedor criado!');
+    onSuccess: ({ data }) => {
       queryClient.invalidateQueries({ queryKey: ['team'] });
-      onClose();
+      if (data.cobranca_pendente?.pix_copia_cola) {
+        // Usuário além do plano: mostra o PIX pra pagamento imediato antes de fechar.
+        setCobrancaPendente(data.cobranca_pendente);
+      } else {
+        toast.success('Vendedor criado!');
+        onClose();
+      }
     },
     onError: (e: any) => {
       const msg = e?.response?.data?.message;
@@ -82,6 +89,18 @@ function MemberModal({
     if (member) updateMutation.mutate();
     else createMutation.mutate();
   };
+
+  if (cobrancaPendente) {
+    return (
+      <ModalPixFixo
+        titulo="Usuário além do plano"
+        descricao="Este vendedor está além dos usuários inclusos no seu plano — pague o valor abaixo pra liberar o acesso normal do sistema."
+        valor={cobrancaPendente.valor}
+        copiaCola={cobrancaPendente.pix_copia_cola}
+        onClose={() => { toast.success('Vendedor criado! Aguardando confirmação do pagamento.'); onClose(); }}
+      />
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

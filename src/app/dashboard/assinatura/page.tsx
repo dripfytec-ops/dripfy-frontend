@@ -1,8 +1,8 @@
 'use client';
-import { useEffect, useState } from 'react';
-import QRCode from 'qrcode';
-import { Copy, Check, AlertTriangle, CreditCard, Users } from 'lucide-react';
+import { useState } from 'react';
+import { AlertTriangle, CreditCard, Users } from 'lucide-react';
 import { useAssinaturaStatus } from '@/lib/assinatura-api';
+import ModalPixFixo from '@/components/financeiro/ModalPixFixo';
 
 function formatarData(iso: string | null | undefined): string {
   if (!iso) return '—';
@@ -13,46 +13,9 @@ function formatarMoeda(valor: string | number): string {
   return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
-function PixFatura({ copiaCola }: { copiaCola: string }) {
-  const [copiado, setCopiado] = useState(false);
-  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    QRCode.toDataURL(copiaCola, { width: 200, margin: 1 }).then(setQrCodeUrl).catch(() => setQrCodeUrl(null));
-  }, [copiaCola]);
-
-  const copiar = () => {
-    navigator.clipboard.writeText(copiaCola);
-    setCopiado(true);
-    setTimeout(() => setCopiado(false), 2000);
-  };
-
-  return (
-    <div className="flex flex-col items-center gap-3">
-      {qrCodeUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={qrCodeUrl} alt="QR Code PIX" className="w-[200px] h-[200px] rounded-lg border border-gray-100" />
-      ) : (
-        <div className="w-[200px] h-[200px] rounded-lg border border-gray-100 flex items-center justify-center text-xs text-gray-400">
-          Gerando QR Code...
-        </div>
-      )}
-      <button
-        onClick={copiar}
-        className="w-full flex items-center justify-center gap-2 border border-gray-200 rounded-lg py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-      >
-        {copiado ? <Check size={15} className="text-green-600" /> : <Copy size={15} />}
-        {copiado ? 'Código copiado!' : 'Copiar Pix Copia e Cola'}
-      </button>
-      <p className="text-xs text-gray-500 text-center">
-        Após o pagamento, envie o comprovante para o suporte pra liberação imediata do acesso.
-      </p>
-    </div>
-  );
-}
-
 export default function AssinaturaPage() {
   const { data, isLoading } = useAssinaturaStatus();
+  const [showPix, setShowPix] = useState(false);
 
   if (isLoading || !data) {
     return (
@@ -106,7 +69,7 @@ export default function AssinaturaPage() {
             Vencimento em {formatarData(data.fatura_pendente.vencimento)} — {formatarMoeda(data.fatura_pendente.valor_total)}
           </p>
           {data.fatura_pendente.pix_copia_cola ? (
-            <PixFatura copiaCola={data.fatura_pendente.pix_copia_cola} />
+            <button onClick={() => setShowPix(true)} className="btn-primary text-sm">Pagar com PIX</button>
           ) : (
             <p className="text-sm text-gray-400">PIX ainda não disponível — entre em contato com o suporte.</p>
           )}
@@ -115,6 +78,16 @@ export default function AssinaturaPage() {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 text-center text-sm text-gray-500">
           Nenhuma fatura em aberto no momento. Você está em dia com a mensalidade.
         </div>
+      )}
+
+      {showPix && data.fatura_pendente?.pix_copia_cola && (
+        <ModalPixFixo
+          titulo="Pagamento da Mensalidade"
+          descricao={`Fatura ${data.fatura_pendente.competencia} — após o pagamento, envie o comprovante pro suporte pra liberação imediata do acesso.`}
+          valor={data.fatura_pendente.valor_total}
+          copiaCola={data.fatura_pendente.pix_copia_cola}
+          onClose={() => setShowPix(false)}
+        />
       )}
     </div>
   );

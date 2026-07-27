@@ -15,11 +15,15 @@ import api from '@/lib/api';
 import { auth } from '@/lib/auth';
 import { Tenant, CreditoTransacaoTipo, MensalidadeFaturaStatus } from '@/types';
 import { useExtratoCreditosTenant } from '@/lib/financeiro-api';
-import { useMensalidadeTenant, useCampanhasTenant, useConfirmarPagamentoMensalidade, useAtualizarPlano } from '@/lib/assinatura-api';
+import { useMensalidadeTenant, useCampanhasTenant, useConfirmarPagamentoMensalidade, useConfirmarPagamentoAvulso, useAtualizarPlano } from '@/lib/assinatura-api';
 
 const schema = z.object({
   nome_empresa: z.string().min(2),
   slug: z.string().min(2).regex(/^[a-z0-9-]+$/, 'Apenas letras minúsculas, números e hífens'),
+  cnpj: z.string().optional(),
+  telefone: z.string().optional(),
+  nome_responsavel: z.string().optional(),
+  email_contato: z.string().email('E-mail inválido').optional().or(z.literal('')),
   admin_nome: z.string().min(2),
   admin_email: z.string().email(),
   admin_password: z.string().min(8),
@@ -61,6 +65,10 @@ type TenantDetail = {
   id: string;
   nome_empresa: string;
   slug: string;
+  cnpj: string | null;
+  telefone: string | null;
+  nome_responsavel: string | null;
+  email_contato: string | null;
   status_assinatura: string;
   criado_em: string;
   assinatura_bloqueada: boolean;
@@ -142,9 +150,26 @@ export default function TenantsPage() {
   const { data: mensalidade, isLoading: mensalidadeLoading } = useMensalidadeTenant(selectedId);
   const { data: campanhas = [], isLoading: campanhasLoading } = useCampanhasTenant(selectedId);
   const confirmarPagamento = useConfirmarPagamentoMensalidade(selectedId || '');
+  const confirmarPagamentoAvulso = useConfirmarPagamentoAvulso(selectedId || '');
   const atualizarPlano = useAtualizarPlano(selectedId || '');
   const [editandoPlano, setEditandoPlano] = useState(false);
   const [planoForm, setPlanoForm] = useState({ usuarios_inclusos: '', valor_mensalidade_base: '', valor_usuario_adicional: '' });
+  const [editandoDados, setEditandoDados] = useState(false);
+  const [dadosForm, setDadosForm] = useState({ cnpj: '', telefone: '', nome_responsavel: '', email_contato: '' });
+
+  const atualizarDadosCadastrais = useMutation({
+    mutationFn: (dto: typeof dadosForm) => api.patch(`/tenants/${selectedId}/dados-cadastrais`, {
+      ...dto,
+      email_contato: dto.email_contato || undefined,
+    }),
+    onSuccess: () => {
+      toast.success('Dados cadastrais atualizados.');
+      queryClient.invalidateQueries({ queryKey: ['tenant-detail', selectedId] });
+      queryClient.invalidateQueries({ queryKey: ['tenants'] });
+      setEditandoDados(false);
+    },
+    onError: () => toast.error('Erro ao atualizar dados cadastrais.'),
+  });
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -197,6 +222,7 @@ export default function TenantsPage() {
     setActiveTab('resumo');
     setResetingUserId(null);
     setEditandoPlano(false);
+    setEditandoDados(false);
   };
 
   return (
@@ -406,6 +432,89 @@ export default function TenantsPage() {
 
                 {activeTab === 'dados' && (
                   <div className="space-y-5">
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Dados Cadastrais</p>
+                        {tenantDetail && !editandoDados && (
+                          <button
+                            onClick={() => {
+                              setDadosForm({
+                                cnpj: tenantDetail.cnpj || '',
+                                telefone: tenantDetail.telefone || '',
+                                nome_responsavel: tenantDetail.nome_responsavel || '',
+                                email_contato: tenantDetail.email_contato || '',
+                              });
+                              setEditandoDados(true);
+                            }}
+                            className="text-xs font-medium text-primary hover:underline"
+                          >
+                            Editar
+                          </button>
+                        )}
+                      </div>
+                      {!tenantDetail ? (
+                        <p className="text-gray-400 text-sm">Carregando...</p>
+                      ) : editandoDados ? (
+                        <div className="space-y-3 border border-gray-100 rounded-xl p-4">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">CNPJ</label>
+                              <input
+                                value={dadosForm.cnpj}
+                                onChange={(e) => setDadosForm((p) => ({ ...p, cnpj: e.target.value }))}
+                                className="input text-sm py-1.5"
+                                placeholder="12.345.678/0001-90"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">Telefone</label>
+                              <input
+                                value={dadosForm.telefone}
+                                onChange={(e) => setDadosForm((p) => ({ ...p, telefone: e.target.value }))}
+                                className="input text-sm py-1.5"
+                                placeholder="(41) 99999-9999"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">Nome do Responsável</label>
+                              <input
+                                value={dadosForm.nome_responsavel}
+                                onChange={(e) => setDadosForm((p) => ({ ...p, nome_responsavel: e.target.value }))}
+                                className="input text-sm py-1.5"
+                                placeholder="João Silva"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">E-mail de Contato</label>
+                              <input
+                                value={dadosForm.email_contato}
+                                onChange={(e) => setDadosForm((p) => ({ ...p, email_contato: e.target.value }))}
+                                className="input text-sm py-1.5"
+                                placeholder="contato@lojajoao.com"
+                              />
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button onClick={() => setEditandoDados(false)} className="btn-outline text-xs px-3 py-1.5">Cancelar</button>
+                            <button
+                              onClick={() => atualizarDadosCadastrais.mutate(dadosForm)}
+                              disabled={atualizarDadosCadastrais.isPending}
+                              className="btn-primary text-xs px-3 py-1.5"
+                            >
+                              {atualizarDadosCadastrais.isPending ? 'Salvando...' : 'Salvar'}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div><span className="text-gray-400">CNPJ</span><p className="font-medium text-gray-800">{tenantDetail.cnpj || '—'}</p></div>
+                          <div><span className="text-gray-400">Telefone</span><p className="font-medium text-gray-800">{tenantDetail.telefone || '—'}</p></div>
+                          <div><span className="text-gray-400">Nome do Responsável</span><p className="font-medium text-gray-800">{tenantDetail.nome_responsavel || '—'}</p></div>
+                          <div><span className="text-gray-400">E-mail de Contato</span><p className="font-medium text-gray-800">{tenantDetail.email_contato || '—'}</p></div>
+                        </div>
+                      )}
+                    </div>
+
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Plano Contratado</p>
@@ -680,6 +789,55 @@ export default function TenantsPage() {
                         </table>
                       </div>
                     )}
+
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 mt-6">Cobranças de Usuário Extra</p>
+                    {mensalidadeLoading ? (
+                      <div className="flex justify-center p-6">
+                        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                      </div>
+                    ) : !mensalidade?.cobrancas_avulsas || mensalidade.cobrancas_avulsas.length === 0 ? (
+                      <p className="text-gray-400 text-sm text-center py-4">Nenhuma cobrança avulsa gerada ainda.</p>
+                    ) : (
+                      <div className="border border-gray-100 rounded-xl overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="bg-gray-50 border-b border-gray-100 text-xs text-gray-500 uppercase tracking-wide">
+                              <th className="text-left px-4 py-2.5 font-medium">Usuário</th>
+                              <th className="text-left px-4 py-2.5 font-medium">Criada em</th>
+                              <th className="text-right px-4 py-2.5 font-medium">Valor</th>
+                              <th className="text-left px-4 py-2.5 font-medium">Status</th>
+                              <th className="text-right px-4 py-2.5 font-medium">Ação</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-50">
+                            {mensalidade.cobrancas_avulsas.map((c) => {
+                              const cfg = FATURA_STATUS_CONFIG[c.status];
+                              return (
+                                <tr key={c.id}>
+                                  <td className="px-4 py-2.5 font-medium text-gray-800">{c.user?.nome || '—'}</td>
+                                  <td className="px-4 py-2.5 text-gray-500">{formatarData(c.criado_em)}</td>
+                                  <td className="px-4 py-2.5 text-right font-mono text-gray-700">{formatarMoeda(c.valor)}</td>
+                                  <td className="px-4 py-2.5">
+                                    <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${cfg.className}`}>{cfg.label}</span>
+                                  </td>
+                                  <td className="px-4 py-2.5 text-right">
+                                    {c.status === 'pendente' && (
+                                      <button
+                                        onClick={() => confirmarPagamentoAvulso.mutate(c.id)}
+                                        disabled={confirmarPagamentoAvulso.isPending}
+                                        className="text-xs font-medium text-primary hover:underline disabled:opacity-50"
+                                      >
+                                        Confirmar Pagamento
+                                      </button>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -738,7 +896,13 @@ export default function TenantsPage() {
                 <X size={20} className="text-gray-400" />
               </button>
             </div>
-            <form onSubmit={handleSubmit((d) => create.mutate(d))} className="space-y-3">
+            <form onSubmit={handleSubmit((d) => create.mutate({
+              ...d,
+              cnpj: d.cnpj || undefined,
+              telefone: d.telefone || undefined,
+              nome_responsavel: d.nome_responsavel || undefined,
+              email_contato: d.email_contato || undefined,
+            }))} className="space-y-3">
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Nome da Empresa</label>
                 <input {...register('nome_empresa')} className="input" placeholder="Loja do João" />
@@ -748,6 +912,27 @@ export default function TenantsPage() {
                 <label className="block text-xs font-medium text-gray-600 mb-1">Slug (URL)</label>
                 <input {...register('slug')} className="input" placeholder="loja-do-joao" />
                 {errors.slug && <p className="text-red-500 text-xs mt-0.5">{errors.slug.message}</p>}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">CNPJ</label>
+                  <input {...register('cnpj')} className="input" placeholder="12.345.678/0001-90" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Telefone</label>
+                  <input {...register('telefone')} className="input" placeholder="(41) 99999-9999" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Nome do Responsável</label>
+                  <input {...register('nome_responsavel')} className="input" placeholder="João Silva" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">E-mail de Contato</label>
+                  <input {...register('email_contato')} className="input" placeholder="contato@lojajoao.com" />
+                  {errors.email_contato && <p className="text-red-500 text-xs mt-0.5">{errors.email_contato.message}</p>}
+                </div>
               </div>
               <hr className="border-gray-100" />
               <p className="text-xs text-gray-500 font-medium">Admin do Lojista</p>

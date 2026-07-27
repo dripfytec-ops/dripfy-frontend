@@ -202,6 +202,10 @@ export interface Tenant {
   id: string;
   nome_empresa: string;
   slug: string;
+  cnpj?: string | null;
+  telefone?: string | null;
+  nome_responsavel?: string | null;
+  email_contato?: string | null;
   status_assinatura: SubscriptionStatus;
   criado_em: string;
   usuarios_inclusos?: number;
@@ -228,6 +232,20 @@ export interface MensalidadeFatura {
   criado_em: string;
 }
 
+export type CobrancaAvulsaStatus = 'pendente' | 'pago' | 'cancelado';
+
+export interface CobrancaAvulsaUsuario {
+  id: string;
+  tenant_id: string;
+  user_id: string;
+  valor: string;
+  status: CobrancaAvulsaStatus;
+  pix_copia_cola: string | null;
+  criado_em: string;
+  pago_em: string | null;
+  user?: { nome: string; email: string };
+}
+
 export interface MensalidadeResumo {
   usuarios_inclusos: number;
   valor_mensalidade_base: string;
@@ -239,6 +257,7 @@ export interface MensalidadeResumo {
   proxima_cobranca_em: string | null;
   fatura_pendente?: MensalidadeFatura | null;
   faturas?: MensalidadeFatura[];
+  cobrancas_avulsas?: CobrancaAvulsaUsuario[];
 }
 
 export interface CampanhaResumoTenant {
