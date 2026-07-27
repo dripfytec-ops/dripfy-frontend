@@ -15,6 +15,8 @@ function formatarMoeda(valor: string | number): string {
   return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
+const QUANTIDADE_MINIMA_CREDITOS = 2000;
+
 const TIPO_CONFIG: Record<CreditoTransacaoTipo, { label: string; icon: React.ElementType; className: string }> = {
   compra: { label: 'Compra', icon: ArrowUpCircle, className: 'text-green-600' },
   consumo: { label: 'Consumo', icon: ArrowDownCircle, className: 'text-red-600' },
@@ -22,7 +24,7 @@ const TIPO_CONFIG: Record<CreditoTransacaoTipo, { label: string; icon: React.Ele
 };
 
 function ModalComprarCreditos({ precoUnitario, onClose }: { precoUnitario: number; onClose: () => void }) {
-  const [quantidade, setQuantidade] = useState('100');
+  const [quantidade, setQuantidade] = useState(String(QUANTIDADE_MINIMA_CREDITOS));
   const comprar = useComprarCreditosManual();
   const [compra, setCompra] = useState<Invoice | null>(null);
 
@@ -46,11 +48,12 @@ function ModalComprarCreditos({ precoUnitario, onClose }: { precoUnitario: numbe
         <label className="block text-xs font-medium text-gray-600 mb-1">Quantidade de créditos</label>
         <input
           type="number"
-          min={1}
+          min={QUANTIDADE_MINIMA_CREDITOS}
           value={quantidade}
           onChange={(e) => setQuantidade(e.target.value)}
           className="input mb-3"
         />
+        <p className="text-xs text-gray-400 -mt-2 mb-3">Mínimo de {QUANTIDADE_MINIMA_CREDITOS} créditos por compra.</p>
         <p className="text-sm text-gray-700 mb-4">
           Total: <span className="font-bold">{formatarMoeda(Number(quantidade || 0) * precoUnitario)}</span>
         </p>
@@ -59,7 +62,7 @@ function ModalComprarCreditos({ precoUnitario, onClose }: { precoUnitario: numbe
           <button
             onClick={() => {
               const qtd = Number(quantidade);
-              if (!qtd || qtd <= 0) return toast.error('Quantidade inválida.');
+              if (!qtd || qtd < QUANTIDADE_MINIMA_CREDITOS) return toast.error(`Quantidade mínima é ${QUANTIDADE_MINIMA_CREDITOS} créditos.`);
               comprar.mutate(qtd, {
                 onSuccess: (data) => setCompra(data),
                 onError: () => toast.error('Erro ao gerar cobrança.'),

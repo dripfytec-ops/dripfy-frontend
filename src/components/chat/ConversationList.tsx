@@ -40,7 +40,7 @@ export default function ConversationList({ selectedLeadId, onSelect, etiquetas, 
   const [filterEtiqueta, setFilterEtiqueta] = useState('');
   const [filterCampanha, setFilterCampanha] = useState('');
   const [filterVendedor, setFilterVendedor] = useState('');
-  const [quickTab, setQuickTab] = useState<'mine' | 'all'>('all');
+  const [quickTab, setQuickTab] = useState<'mine' | 'all' | 'closed'>('all');
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
 
@@ -57,13 +57,14 @@ export default function ConversationList({ selectedLeadId, onSelect, etiquetas, 
   const effectiveVendedorId = quickTab === 'mine' ? currentUser?.id : filterVendedor;
 
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
-    queryKey: ['leads', 'conversas', { search, filterEtiqueta, filterCampanha, effectiveVendedorId }],
+    queryKey: ['leads', 'conversas', { search, filterEtiqueta, filterCampanha, effectiveVendedorId, quickTab }],
     queryFn: async ({ pageParam }) => {
       const params: any = { sort: 'recent', limit: PAGE_SIZE, page: pageParam };
       if (search) params.search = search;
       if (filterEtiqueta) params.etiqueta_id = filterEtiqueta;
       if (filterCampanha) params.origem_campanha_id = filterCampanha;
       if (effectiveVendedorId) params.vendedor_id = effectiveVendedorId;
+      if (quickTab === 'closed') params.encerradas = true;
       return (await api.get('/leads', { params })).data as PaginatedResponse<Lead>;
     },
     initialPageParam: 1,
@@ -137,6 +138,12 @@ export default function ConversationList({ selectedLeadId, onSelect, etiquetas, 
             className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${quickTab === 'all' ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
           >
             Todas
+          </button>
+          <button
+            onClick={() => setQuickTab('closed')}
+            className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${quickTab === 'closed' ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            Encerradas
           </button>
         </div>
         {(etiquetas.length > 0 || campanhas.length > 0) && (

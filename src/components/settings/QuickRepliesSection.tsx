@@ -109,6 +109,9 @@ export default function QuickRepliesSection() {
                     <div className="min-w-0">
                       <p className="font-medium text-gray-900 text-sm truncate">{qr.titulo}</p>
                       <p className="text-xs text-gray-400 truncate">{qr.texto}</p>
+                      {qr.criado_por && (
+                        <p className="text-[11px] text-gray-300 mt-0.5">Criado por {qr.criado_por}</p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">

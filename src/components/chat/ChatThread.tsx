@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient, InfiniteData } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Send, CheckCheck, Check, AlertCircle, MessageSquare, SendHorizonal, Clock, Trash2, PhoneIncoming, FileText, Download, Zap, Mic, Square, X, UserPlus } from 'lucide-react';
+import { Send, CheckCheck, Check, AlertCircle, MessageSquare, SendHorizonal, Clock, Trash2, PhoneIncoming, FileText, Download, Zap, Mic, Square, X, UserPlus, CircleCheck } from 'lucide-react';
 import api, { getMediaUrl } from '@/lib/api';
 import { auth } from '@/lib/auth';
 import { Lead, LeadActivity, Message, MessageStatus, PaginatedResponse, QuickReply } from '@/types';
@@ -263,9 +263,25 @@ export default function ChatThread({ lead, onUpdated }: Props) {
     onError: (error: any) => toast.error(error?.response?.data?.message || 'Erro ao atribuir conversa.'),
   });
 
+  const encerrarMutation = useMutation({
+    mutationFn: async () => (await api.patch(`/leads/${lead.id_number}/encerrar`)).data as Lead,
+    onSuccess: (updated) => {
+      queryClient.invalidateQueries({ queryKey: ['leads', 'activities', lead.id_number] });
+      queryClient.invalidateQueries({ queryKey: ['leads', 'conversas'] });
+      onUpdated?.(updated);
+      toast.success('Conversa encerrada.');
+    },
+    onError: (error: any) => toast.error(error?.response?.data?.message || 'Erro ao encerrar conversa.'),
+  });
+
   const handleDelete = () => {
     if (!confirm('Apagar todo o histórico de mensagens deste lead?')) return;
     deleteMutation.mutate();
+  };
+
+  const handleEncerrar = () => {
+    if (!confirm('Encerrar esta conversa? Ela sai da lista geral e vai pra aba "Encerradas".')) return;
+    encerrarMutation.mutate();
   };
 
   const deleteMessageMutation = useMutation({
@@ -416,18 +432,20 @@ export default function ChatThread({ lead, onUpdated }: Props) {
             <UserPlus size={12} />
             {isMine ? 'Atribuída a mim' : 'Atribuir a mim'}
           </button>
-          {lead.etiquetas.length > 0 && (
-            <div className="flex items-center gap-1">
-              {lead.etiquetas.map((et) => (
-                <span
-                  key={et.id}
-                  className="text-xs px-2 py-0.5 rounded-full font-medium"
-                  style={{ backgroundColor: et.cor_hexadecimal + '20', color: et.cor_hexadecimal }}
-                >
-                  {et.nome}
-                </span>
-              ))}
-            </div>
+          {lead.status_atual === 'finalizado' ? (
+            <span className="flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium bg-gray-100 text-gray-500">
+              <CircleCheck size={12} /> Conversa encerrada
+            </span>
+          ) : (
+            <button
+              onClick={handleEncerrar}
+              disabled={encerrarMutation.isPending}
+              title="Encerrar esta conversa"
+              className="flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors disabled:opacity-60"
+            >
+              <CircleCheck size={12} />
+              Encerrar Conversa
+            </button>
           )}
           <button
             onClick={handleDelete}

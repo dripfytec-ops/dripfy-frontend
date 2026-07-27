@@ -17,6 +17,10 @@ interface NavChild {
   href: string;
   label: string;
   icon: React.ElementType;
+  // Vendedor (atendente) só vê Chat e Configurações — e dentro de
+  // Configurações, só Respostas Rápidas e Etiquetas. Todo o resto de
+  // Configurações fica escondido pra esse papel.
+  hideForAtendente?: boolean;
 }
 
 interface NavItem {
@@ -30,7 +34,7 @@ interface NavItem {
 const NAV_BASE: NavItem[] = [
   { href: '/dashboard', icon: MessageCircle, label: 'Chat', adminOnly: false },
   {
-    href: '/dashboard/campaigns', icon: Megaphone, label: 'Disparo em Massa', adminOnly: false,
+    href: '/dashboard/campaigns', icon: Megaphone, label: 'Disparo em Massa', adminOnly: true,
     children: [
       { href: '/dashboard/campaigns', label: 'Disparo Próprio', icon: Building2 },
       { href: '/dashboard/campaigns/dripify', label: 'Disparo Dripfy', icon: Sparkles },
@@ -38,22 +42,22 @@ const NAV_BASE: NavItem[] = [
     ],
   },
   {
-    href: '/dashboard/enriquecimento', icon: FileSpreadsheet, label: 'Enriquecimento', adminOnly: false,
+    href: '/dashboard/enriquecimento', icon: FileSpreadsheet, label: 'Enriquecimento', adminOnly: true,
     children: [
       { href: '/dashboard/enriquecimento', label: 'Enriquecimento', icon: FileSpreadsheet },
       { href: '/dashboard/enriquecimento/creditos', label: 'Créditos Enriquecimento', icon: Wallet },
     ],
   },
   {
-    href: '/dashboard/settings', icon: Settings, label: 'Configurações', adminOnly: true,
+    href: '/dashboard/settings', icon: Settings, label: 'Configurações', adminOnly: false,
     children: [
-      { href: '/dashboard/settings/equipe', label: 'Equipe', icon: Users },
-      { href: '/dashboard/settings/canais', label: 'Gerenciar Canais', icon: Radio },
-      { href: '/dashboard/settings/tokens', label: 'Tokens Meta', icon: KeyRound },
+      { href: '/dashboard/settings/equipe', label: 'Equipe', icon: Users, hideForAtendente: true },
+      { href: '/dashboard/settings/canais', label: 'Gerenciar Canais', icon: Radio, hideForAtendente: true },
+      { href: '/dashboard/settings/tokens', label: 'Tokens Meta', icon: KeyRound, hideForAtendente: true },
       { href: '/dashboard/settings/respostas-rapidas', label: 'Respostas Rápidas', icon: Zap },
       { href: '/dashboard/settings/etiquetas', label: 'Etiquetas', icon: Tag },
-      { href: '/dashboard/settings/boas-vindas', label: 'Mensagem de Boas Vindas', icon: MessageSquareText },
-      { href: '/dashboard/assinatura', label: 'Assinatura', icon: CreditCard },
+      { href: '/dashboard/settings/boas-vindas', label: 'Mensagem de Boas Vindas', icon: MessageSquareText, hideForAtendente: true },
+      { href: '/dashboard/assinatura', label: 'Assinatura', icon: CreditCard, hideForAtendente: true },
     ],
   },
 ];
@@ -72,7 +76,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [expandedHref, setExpandedHref] = useState<string | null>(null);
 
   const isAdmin = user?.role === 'lojista_admin' || user?.role === 'admin_master';
-  const navItems = NAV_BASE.filter((item) => !item.adminOnly || isAdmin);
+  const isAtendente = user?.role === 'atendente';
+  const navItems = NAV_BASE
+    .filter((item) => !item.adminOnly || isAdmin)
+    .map((item) => ({
+      ...item,
+      children: item.children?.filter((c) => !(isAtendente && c.hideForAtendente)),
+    }));
 
   useEffect(() => {
     if (!auth.isAuthenticated()) {

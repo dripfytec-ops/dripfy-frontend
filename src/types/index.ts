@@ -17,6 +17,7 @@ export interface QuickReply {
   tenant_id: string;
   titulo: string;
   texto: string;
+  criado_por?: string | null;
   criado_em: string;
 }
 
@@ -27,6 +28,7 @@ export interface Etiqueta {
   cor_hexadecimal: string;
   ordem: number;
   slug?: string;
+  criado_por?: string | null;
 }
 
 // ─── Disparo em Massa (canais oficiais Meta + campanhas em lote) ──────────

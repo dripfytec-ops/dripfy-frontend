@@ -138,17 +138,23 @@ function MemberModal({
 
           {!member && (
             <>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Perfil</label>
-                <select
-                  value={form.role}
-                  onChange={(e) => setForm((p) => ({ ...p, role: e.target.value }))}
-                  className="input"
-                >
-                  <option value="atendente">Vendedor (atendente)</option>
-                  <option value="lojista_admin">Admin da loja</option>
-                </select>
-              </div>
+              {auth.getUser()?.role === 'admin_master' ? (
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Perfil</label>
+                  <select
+                    value={form.role}
+                    onChange={(e) => setForm((p) => ({ ...p, role: e.target.value }))}
+                    className="input"
+                  >
+                    <option value="atendente">Vendedor (atendente)</option>
+                    <option value="lojista_admin">Admin da loja</option>
+                  </select>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-500 -mt-1">
+                  Novo usuário será cadastrado como <span className="font-medium">Vendedor</span>.
+                </p>
+              )}
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Senha inicial</label>
                 <div className="relative">

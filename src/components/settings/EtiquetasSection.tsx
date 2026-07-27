@@ -99,10 +99,17 @@ export default function EtiquetasSection() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: etiqueta.cor_hexadecimal }} />
-                    <p className="font-medium text-gray-900 text-sm truncate">{etiqueta.nome}</p>
-                    {isSystem(etiqueta.slug) && (
-                      <span className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full flex-shrink-0">sistema</span>
-                    )}
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-gray-900 text-sm truncate">{etiqueta.nome}</p>
+                        {isSystem(etiqueta.slug) && (
+                          <span className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full flex-shrink-0">sistema</span>
+                        )}
+                      </div>
+                      {etiqueta.criado_por && (
+                        <p className="text-[11px] text-gray-300">Criado por {etiqueta.criado_por}</p>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
                     <button onClick={() => startEdit(etiqueta)} className="p-1.5 text-gray-400 hover:text-primary hover:bg-blue-50 rounded-lg transition-colors">
