@@ -1,18 +1,29 @@
 'use client';
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { FileSpreadsheet, Download, CheckCircle2, Clock, UploadCloud } from 'lucide-react';
-import { useEnriquecimentosAdmin, useConcluirEnriquecimento } from '@/lib/enriquecimento-api';
+import { FileSpreadsheet, Download, CheckCircle2, Clock, UploadCloud, Wallet } from 'lucide-react';
+import {
+  useEnriquecimentosAdmin, useConcluirEnriquecimento,
+  useComprasEnriquecimentoAdmin, useConfirmarPagamentoCompraEnriquecimento,
+} from '@/lib/enriquecimento-api';
 
 function formatarDataHora(iso: string): string {
   return new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 }
 
+function formatarMoeda(valor: string | number): string {
+  return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
 export default function AdminEnriquecimentoPage() {
   const { data: solicitacoes = [], isLoading } = useEnriquecimentosAdmin();
+  const { data: compras = [], isLoading: comprasLoading } = useComprasEnriquecimentoAdmin();
+  const confirmarCompra = useConfirmarPagamentoCompraEnriquecimento();
   const concluir = useConcluirEnriquecimento();
   const [enviandoId, setEnviandoId] = useState<string | null>(null);
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  const comprasPendentes = compras.filter((c) => c.status === 'pendente');
 
   const handleArquivoSelecionado = (id: string, file: File | undefined) => {
     if (!file) return;
@@ -31,6 +42,41 @@ export default function AdminEnriquecimentoPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Enriquecimento de Leads</h1>
         <p className="text-gray-500 text-sm mt-0.5">Planilhas enviadas pelos lojistas pra higienização de telefones</p>
+      </div>
+
+      <div className="mb-6">
+        <h2 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
+          <Wallet size={14} className="text-amber-500" /> Compras de Créditos Pendentes ({comprasPendentes.length})
+        </h2>
+        {comprasLoading ? (
+          <div className="flex justify-center p-6">
+            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : comprasPendentes.length === 0 ? (
+          <p className="text-gray-400 text-sm">Nenhuma compra pendente no momento.</p>
+        ) : (
+          <div className="card divide-y divide-gray-50 overflow-hidden">
+            {comprasPendentes.map((c) => (
+              <div key={c.id} className="px-5 py-3.5 flex items-center gap-3">
+                <Wallet size={18} className="text-amber-500 flex-shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-gray-800 truncate">{c.tenant?.nome_empresa} — {c.quantidade_creditos} créditos</p>
+                  <p className="text-xs text-gray-400">Solicitado em {formatarDataHora(c.criado_em)} · {formatarMoeda(c.valor_total)}</p>
+                </div>
+                <button
+                  onClick={() => confirmarCompra.mutate(c.id, {
+                    onSuccess: () => toast.success('Pagamento confirmado, créditos liberados!'),
+                    onError: () => toast.error('Erro ao confirmar pagamento.'),
+                  })}
+                  disabled={confirmarCompra.isPending}
+                  className="btn-primary text-xs px-3 py-1.5 flex-shrink-0 disabled:opacity-50"
+                >
+                  Confirmar Pagamento
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {isLoading ? (

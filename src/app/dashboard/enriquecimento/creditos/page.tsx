@@ -1,10 +1,10 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
-import { Wallet, Plus, ArrowUpCircle, ArrowDownCircle, SlidersHorizontal, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
-import { useExtratoCreditos, useComprarCreditosManual } from '@/lib/financeiro-api';
-import { CreditoTransacaoTipo, Invoice } from '@/types';
+import { Wallet, Plus, ArrowUpCircle, ArrowDownCircle, SlidersHorizontal, ArrowLeft } from 'lucide-react';
+import { useSaldoEnriquecimento, useComprarCreditosEnriquecimento } from '@/lib/enriquecimento-api';
+import { EnriquecimentoTransacaoTipo } from '@/types';
 import ModalPixFixo from '@/components/financeiro/ModalPixFixo';
 
 function formatarDataHora(iso: string): string {
@@ -15,24 +15,24 @@ function formatarMoeda(valor: string | number): string {
   return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
-const TIPO_CONFIG: Record<CreditoTransacaoTipo, { label: string; icon: React.ElementType; className: string }> = {
+const TIPO_CONFIG: Record<EnriquecimentoTransacaoTipo, { label: string; icon: React.ElementType; className: string }> = {
   compra: { label: 'Compra', icon: ArrowUpCircle, className: 'text-green-600' },
   consumo: { label: 'Consumo', icon: ArrowDownCircle, className: 'text-red-600' },
   ajuste: { label: 'Ajuste', icon: SlidersHorizontal, className: 'text-blue-600' },
 };
 
-function ModalComprarCreditos({ precoUnitario, onClose }: { precoUnitario: number; onClose: () => void }) {
+function ModalComprarCreditos({ precoUnitario, onClose }: { precoUnitario: string; onClose: () => void }) {
   const [quantidade, setQuantidade] = useState('100');
-  const comprar = useComprarCreditosManual();
-  const [compra, setCompra] = useState<Invoice | null>(null);
+  const comprar = useComprarCreditosEnriquecimento();
+  const [compra, setCompra] = useState<{ valor_total: string; pix_copia_cola: string } | null>(null);
 
   if (compra) {
     return (
       <ModalPixFixo
-        titulo="Comprar Créditos Dripfy"
+        titulo="Comprar Créditos de Higienização"
         descricao="Após o pagamento, envie o comprovante pro suporte pra liberação imediata dos créditos."
         valor={compra.valor_total}
-        copiaCola={compra.pix_copia_cola!}
+        copiaCola={compra.pix_copia_cola}
         onClose={onClose}
       />
     );
@@ -41,8 +41,8 @@ function ModalComprarCreditos({ precoUnitario, onClose }: { precoUnitario: numbe
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-5">
-        <h3 className="font-bold text-gray-900 mb-3">Comprar Créditos Dripfy</h3>
-        <p className="text-xs text-gray-500 mb-3">{formatarMoeda(precoUnitario)} por crédito</p>
+        <h3 className="font-bold text-gray-900 mb-3">Comprar Créditos de Higienização</h3>
+        <p className="text-xs text-gray-500 mb-3">{formatarMoeda(precoUnitario)} por crédito (1 crédito = 1 lead)</p>
         <label className="block text-xs font-medium text-gray-600 mb-1">Quantidade de créditos</label>
         <input
           type="number"
@@ -52,7 +52,7 @@ function ModalComprarCreditos({ precoUnitario, onClose }: { precoUnitario: numbe
           className="input mb-3"
         />
         <p className="text-sm text-gray-700 mb-4">
-          Total: <span className="font-bold">{formatarMoeda(Number(quantidade || 0) * precoUnitario)}</span>
+          Total: <span className="font-bold">{formatarMoeda(Number(quantidade || 0) * Number(precoUnitario))}</span>
         </p>
         <div className="flex gap-2">
           <button onClick={onClose} className="btn-outline flex-1 text-sm">Cancelar</button>
@@ -61,7 +61,7 @@ function ModalComprarCreditos({ precoUnitario, onClose }: { precoUnitario: numbe
               const qtd = Number(quantidade);
               if (!qtd || qtd <= 0) return toast.error('Quantidade inválida.');
               comprar.mutate(qtd, {
-                onSuccess: (data) => setCompra(data),
+                onSuccess: (data) => setCompra({ valor_total: data.valor_total, pix_copia_cola: data.pix_copia_cola! }),
                 onError: () => toast.error('Erro ao gerar cobrança.'),
               });
             }}
@@ -76,16 +76,16 @@ function ModalComprarCreditos({ precoUnitario, onClose }: { precoUnitario: numbe
   );
 }
 
-export default function CreditosDripifyPage() {
-  const { data, isLoading } = useExtratoCreditos();
-  const [showPix, setShowPix] = useState(false);
+export default function CreditosEnriquecimentoPage() {
+  const { data, isLoading } = useSaldoEnriquecimento();
+  const [showComprar, setShowComprar] = useState(false);
 
   return (
     <div className="p-6">
-      {showPix && data && <ModalComprarCreditos precoUnitario={data.valor_credito} onClose={() => setShowPix(false)} />}
+      {showComprar && data && <ModalComprarCreditos precoUnitario={data.valor_credito} onClose={() => setShowComprar(false)} />}
 
-      <Link href="/dashboard/campaigns/dripify" className="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 mb-4 transition-colors">
-        <ArrowLeft className="w-3.5 h-3.5" /> Voltar às Campanhas
+      <Link href="/dashboard/enriquecimento" className="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 mb-4 transition-colors">
+        <ArrowLeft className="w-3.5 h-3.5" /> Voltar ao Enriquecimento
       </Link>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-5">
@@ -95,14 +95,14 @@ export default function CreditosDripifyPage() {
               <Wallet size={20} className="text-amber-500" />
             </div>
             <div>
-              <p className="text-xs text-gray-400">Saldo atual</p>
+              <p className="text-xs text-gray-400">Saldo de Higienização</p>
               <p className="text-2xl font-bold text-gray-800">
                 {isLoading ? '—' : `${data?.creditos_saldo ?? 0} créditos`}
               </p>
             </div>
           </div>
           <button
-            onClick={() => setShowPix(true)}
+            onClick={() => setShowComprar(true)}
             className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded-lg shadow-sm transition-colors"
           >
             <Plus className="w-3.5 h-3.5" /> Adicionar Créditos

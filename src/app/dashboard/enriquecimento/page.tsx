@@ -1,7 +1,8 @@
 'use client';
 import { useRef, useState } from 'react';
+import Link from 'next/link';
 import { toast } from 'sonner';
-import { UploadCloud, FileSpreadsheet, Download, CheckCircle2, Clock } from 'lucide-react';
+import { UploadCloud, FileSpreadsheet, Download, CheckCircle2, Clock, Wallet } from 'lucide-react';
 import { useEnriquecimentos, useUploadEnriquecimento } from '@/lib/enriquecimento-api';
 
 function formatarDataHora(iso: string): string {
@@ -12,15 +13,19 @@ export default function EnriquecimentoPage() {
   const { data: solicitacoes = [], isLoading } = useEnriquecimentos();
   const upload = useUploadEnriquecimento();
   const [arquivo, setArquivo] = useState<File | null>(null);
+  const [quantidadeLeads, setQuantidadeLeads] = useState('');
   const [observacoes, setObservacoes] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleUpload = () => {
     if (!arquivo) return toast.error('Selecione uma planilha primeiro.');
-    upload.mutate({ file: arquivo, observacoes: observacoes.trim() || undefined }, {
+    const qtd = Number(quantidadeLeads);
+    if (!qtd || qtd <= 0) return toast.error('Informe a quantidade de leads da planilha.');
+    upload.mutate({ file: arquivo, quantidadeLeads: qtd, observacoes: observacoes.trim() || undefined }, {
       onSuccess: () => {
         toast.success('Planilha enviada! Aguarde o processamento.');
         setArquivo(null);
+        setQuantidadeLeads('');
         setObservacoes('');
         if (inputRef.current) inputRef.current.value = '';
       },
@@ -30,12 +35,20 @@ export default function EnriquecimentoPage() {
 
   return (
     <div className="p-6 max-w-3xl mx-auto space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Enriquecimento de Leads</h1>
-        <p className="text-gray-500 text-sm mt-0.5">
-          Suba uma planilha com os telefones dos seus leads pra higienização. Nossa equipe trata manualmente
-          e devolve a planilha com os telefones corrigidos.
-        </p>
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Enriquecimento de Leads</h1>
+          <p className="text-gray-500 text-sm mt-0.5">
+            Suba uma planilha com os telefones dos seus leads pra higienização. Nossa equipe trata manualmente
+            e devolve a planilha com os telefones corrigidos.
+          </p>
+        </div>
+        <Link
+          href="/dashboard/enriquecimento/creditos"
+          className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 hover:bg-gray-50 text-gray-600 text-xs font-medium rounded-lg transition-colors flex-shrink-0"
+        >
+          <Wallet className="w-3 h-3" /> Créditos
+        </Link>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
@@ -50,6 +63,20 @@ export default function EnriquecimentoPage() {
               onChange={(e) => setArquivo(e.target.files?.[0] || null)}
               className="input text-sm py-2"
             />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Quantidade de leads na planilha</label>
+            <input
+              type="number"
+              min={1}
+              value={quantidadeLeads}
+              onChange={(e) => setQuantidadeLeads(e.target.value)}
+              className="input text-sm py-2"
+              placeholder="Ex: 250"
+            />
+            <p className="text-xs text-gray-400 mt-1">
+              1 crédito por lead — debitado do seu saldo assim que enviar.
+            </p>
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Observações (opcional)</label>
@@ -89,7 +116,7 @@ export default function EnriquecimentoPage() {
                 <FileSpreadsheet size={18} className="text-green-600 flex-shrink-0" />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-gray-800 truncate">{s.nome_arquivo_original}</p>
-                  <p className="text-xs text-gray-400">Enviado em {formatarDataHora(s.criado_em)}</p>
+                  <p className="text-xs text-gray-400">Enviado em {formatarDataHora(s.criado_em)} · {s.quantidade_leads} leads</p>
                 </div>
                 {s.status === 'pendente' ? (
                   <span className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-medium bg-amber-100 text-amber-700 flex-shrink-0">

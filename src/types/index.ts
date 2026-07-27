@@ -267,12 +267,47 @@ export interface EnriquecimentoSolicitacao {
   tenant_id: string;
   nome_arquivo_original: string;
   arquivo_original_url: string;
+  quantidade_leads: number;
   observacoes: string | null;
   status: EnriquecimentoStatus;
   arquivo_processado_url: string | null;
   concluido_em: string | null;
   concluido_por: string | null;
   criado_em: string;
+  tenant?: { id: string; nome_empresa: string; slug: string };
+}
+
+export type EnriquecimentoTransacaoTipo = 'compra' | 'consumo' | 'ajuste';
+
+export interface EnriquecimentoTransacao {
+  id: string;
+  tenant_id: string;
+  tipo: EnriquecimentoTransacaoTipo;
+  quantidade: number;
+  saldo_apos: number;
+  descricao: string;
+  solicitacao_id: string | null;
+  compra_id: string | null;
+  criado_em: string;
+}
+
+export interface EnriquecimentoSaldoExtrato {
+  creditos_saldo: number;
+  valor_credito: string;
+  transacoes: EnriquecimentoTransacao[];
+}
+
+export type EnriquecimentoCompraStatus = 'pendente' | 'pago' | 'cancelado';
+
+export interface EnriquecimentoCompraCredito {
+  id: string;
+  tenant_id: string;
+  quantidade_creditos: number;
+  valor_total: string;
+  status: EnriquecimentoCompraStatus;
+  pix_copia_cola: string | null;
+  criado_em: string;
+  pago_em: string | null;
   tenant?: { id: string; nome_empresa: string; slug: string };
 }
 
@@ -330,6 +365,7 @@ export interface CreditoTransacao {
 
 export interface ExtratoCreditos {
   creditos_saldo: number;
+  valor_credito: number;
   transacoes: CreditoTransacao[];
 }
 

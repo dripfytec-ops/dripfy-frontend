@@ -37,7 +37,13 @@ const NAV_BASE: NavItem[] = [
       { href: '/dashboard/campaigns/dripify/creditos', label: 'Créditos Dripfy', icon: Wallet },
     ],
   },
-  { href: '/dashboard/enriquecimento', icon: FileSpreadsheet, label: 'Enriquecimento', adminOnly: false },
+  {
+    href: '/dashboard/enriquecimento', icon: FileSpreadsheet, label: 'Enriquecimento', adminOnly: false,
+    children: [
+      { href: '/dashboard/enriquecimento', label: 'Enriquecimento', icon: FileSpreadsheet },
+      { href: '/dashboard/enriquecimento/creditos', label: 'Créditos Enriquecimento', icon: Wallet },
+    ],
+  },
   {
     href: '/dashboard/settings', icon: Settings, label: 'Configurações', adminOnly: true,
     children: [

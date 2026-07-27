@@ -14,7 +14,7 @@ import {
 import api from '@/lib/api';
 import { auth } from '@/lib/auth';
 import { Tenant, CreditoTransacaoTipo, MensalidadeFaturaStatus } from '@/types';
-import { useExtratoCreditosTenant } from '@/lib/financeiro-api';
+import { useExtratoCreditosTenant, useInvoicesPendentesTenant, useConfirmarPagamentoInvoice } from '@/lib/financeiro-api';
 import { useMensalidadeTenant, useCampanhasTenant, useConfirmarPagamentoMensalidade, useConfirmarPagamentoAvulso, useAtualizarPlano } from '@/lib/assinatura-api';
 
 const schema = z.object({
@@ -147,6 +147,8 @@ export default function TenantsPage() {
   });
 
   const { data: extrato, isLoading: extratoLoading } = useExtratoCreditosTenant(selectedId);
+  const { data: invoicesPendentes = [] } = useInvoicesPendentesTenant(selectedId);
+  const confirmarPagamentoInvoice = useConfirmarPagamentoInvoice(selectedId || '');
   const { data: mensalidade, isLoading: mensalidadeLoading } = useMensalidadeTenant(selectedId);
   const { data: campanhas = [], isLoading: campanhasLoading } = useCampanhasTenant(selectedId);
   const confirmarPagamento = useConfirmarPagamentoMensalidade(selectedId || '');
@@ -706,6 +708,30 @@ export default function TenantsPage() {
                         <p className="text-lg font-bold text-gray-900">{extratoLoading ? '—' : `${extrato?.creditos_saldo ?? 0} créditos`}</p>
                       </div>
                     </div>
+
+                    {invoicesPendentes.length > 0 && (
+                      <div className="mb-4">
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Cobranças Pendentes</p>
+                        <div className="space-y-1.5">
+                          {invoicesPendentes.map((inv) => (
+                            <div key={inv.id} className="flex items-center justify-between text-xs border border-amber-100 bg-amber-50 rounded-lg px-3 py-2.5">
+                              <span className="text-gray-700">{inv.quantidade_creditos} créditos — {formatarMoeda(inv.valor_total)}</span>
+                              <button
+                                onClick={() => confirmarPagamentoInvoice.mutate(inv.id, {
+                                  onSuccess: () => toast.success('Pagamento confirmado, créditos liberados!'),
+                                  onError: () => toast.error('Erro ao confirmar pagamento.'),
+                                })}
+                                disabled={confirmarPagamentoInvoice.isPending}
+                                className="text-xs font-medium text-primary hover:underline disabled:opacity-50"
+                              >
+                                Confirmar Pagamento
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {extratoLoading ? (
                       <div className="flex justify-center p-6">
                         <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
