@@ -260,6 +260,22 @@ export interface MensalidadeResumo {
   cobrancas_avulsas?: CobrancaAvulsaUsuario[];
 }
 
+export type EnriquecimentoStatus = 'pendente' | 'concluido';
+
+export interface EnriquecimentoSolicitacao {
+  id: string;
+  tenant_id: string;
+  nome_arquivo_original: string;
+  arquivo_original_url: string;
+  observacoes: string | null;
+  status: EnriquecimentoStatus;
+  arquivo_processado_url: string | null;
+  concluido_em: string | null;
+  concluido_por: string | null;
+  criado_em: string;
+  tenant?: { id: string; nome_empresa: string; slug: string };
+}
+
 export interface CampanhaResumoTenant {
   id: string;
   nome: string;

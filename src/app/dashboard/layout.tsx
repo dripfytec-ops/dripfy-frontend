@@ -8,7 +8,7 @@ import { auth } from '@/lib/auth';
 import { User } from '@/types';
 import {
   MessageCircle, Users, Megaphone, Settings, LogOut, ChevronLeft, ChevronRight, ArrowLeftRight,
-  ChevronDown, Building2, Sparkles, Radio, KeyRound, Zap, Tag, MessageSquareText, Wallet, CreditCard,
+  ChevronDown, Building2, Sparkles, Radio, KeyRound, Zap, Tag, MessageSquareText, Wallet, CreditCard, FileSpreadsheet,
 } from 'lucide-react';
 import Logo from '@/components/ui/Logo';
 import { getInitials, getAvatarColor } from '@/lib/avatar';
@@ -37,6 +37,7 @@ const NAV_BASE: NavItem[] = [
       { href: '/dashboard/campaigns/dripify/creditos', label: 'Créditos Dripfy', icon: Wallet },
     ],
   },
+  { href: '/dashboard/enriquecimento', icon: FileSpreadsheet, label: 'Enriquecimento', adminOnly: false },
   {
     href: '/dashboard/settings', icon: Settings, label: 'Configurações', adminOnly: true,
     children: [
