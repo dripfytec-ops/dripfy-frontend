@@ -1,7 +1,7 @@
 'use client';
 import { useMemo, useState } from 'react';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, Plus, Filter, User as UserIcon, X } from 'lucide-react';
+import { Search, Plus, Filter, User as UserIcon, X, Mic } from 'lucide-react';
 import api from '@/lib/api';
 import { useCampanhasDM } from '@/lib/dm-api';
 import { auth } from '@/lib/auth';
@@ -264,7 +264,16 @@ export default function ConversationList({ selectedLeadId, onSelect, etiquetas, 
                   </span>
                 </span>
                 <span className="flex items-center justify-between gap-2 mt-0.5">
-                  <span className="text-xs text-gray-500 truncate">{lead.last_message_preview || 'Nenhuma mensagem ainda'}</span>
+                  <span className="text-xs text-gray-500 truncate flex items-center gap-1">
+                    {lead.last_message_preview?.startsWith('🎤') ? (
+                      <>
+                        <Mic size={11} className="shrink-0" />
+                        <span className="truncate">{lead.last_message_preview.replace('🎤', '').trim()}</span>
+                      </>
+                    ) : (
+                      lead.last_message_preview || 'Nenhuma mensagem ainda'
+                    )}
+                  </span>
                   {unread && (
                     <span className="w-2 h-2 rounded-full shrink-0" style={{ background: '#25D366' }} />
                   )}
