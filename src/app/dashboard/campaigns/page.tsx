@@ -3,11 +3,12 @@ import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Papa from 'papaparse';
 import Link from 'next/link';
-import { X, Radio, Pause, Play, Plus, Settings2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { X, Radio, Pause, Play, Plus, Settings2, Trash2 } from 'lucide-react';
 import api from '@/lib/api';
 import {
   useCanaisDM, useCampanhasDM, useCampanhaDM, useStatusCanaisDM,
-  createCampanhaDM, iniciarDisparoDM, pausarCampanhaDM,
+  createCampanhaDM, iniciarDisparoDM, pausarCampanhaDM, removerCampanhaDM,
   fetchTemplatesDM,
 } from '@/lib/dm-api';
 import { CanalDM, TemplateDM, StatusCampanhaDM, Vendedor } from '@/types';
@@ -264,7 +265,7 @@ function NovaCampanhaModal({ canais, onClose, onCreated }: {
 }
 
 // ── Modal: detalhe da campanha ──────────────────────────────────────────────
-function CampanhaDetalheModal({ campanhaId, onClose }: { campanhaId: string; onClose: () => void }) {
+function CampanhaDetalheModal({ campanhaId, onClose, onDeleted }: { campanhaId: string; onClose: () => void; onDeleted: () => void }) {
   const { data: campanha, refetch } = useCampanhaDM(campanhaId);
   const [acting, setActing] = useState(false);
 
@@ -275,6 +276,17 @@ function CampanhaDetalheModal({ campanhaId, onClose }: { campanhaId: string; onC
   async function pausar() {
     setActing(true);
     try { await pausarCampanhaDM(campanhaId); await refetch(); } finally { setActing(false); }
+  }
+  async function excluir() {
+    if (!confirm('Excluir esta campanha, a base de contatos enviada e os leads/conversas dela no Chat? Essa ação não pode ser desfeita.')) return;
+    setActing(true);
+    try {
+      await removerCampanhaDM(campanhaId);
+      toast.success('Campanha excluída.');
+      onDeleted();
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Erro ao excluir campanha.');
+    } finally { setActing(false); }
   }
 
   if (!campanha) return null;
@@ -308,6 +320,12 @@ function CampanhaDetalheModal({ campanhaId, onClose }: { campanhaId: string; onC
               <button onClick={pausar} disabled={acting}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 text-xs font-medium rounded-lg transition-colors">
                 <Pause className="w-3.5 h-3.5" /> Pausar
+              </button>
+            )}
+            {campanha.status !== 'em_andamento' && (
+              <button onClick={excluir} disabled={acting} title="Excluir campanha"
+                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                <Trash2 className="w-4 h-4" />
               </button>
             )}
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
@@ -397,7 +415,16 @@ function DisparoProprioView() {
           }}
         />
       )}
-      {detalheId != null && <CampanhaDetalheModal campanhaId={detalheId} onClose={() => setDetalheId(null)} />}
+      {detalheId != null && (
+        <CampanhaDetalheModal
+          campanhaId={detalheId}
+          onClose={() => setDetalheId(null)}
+          onDeleted={() => {
+            setDetalheId(null);
+            queryClient.invalidateQueries({ queryKey: ['dm-campanhas'] });
+          }}
+        />
+      )}
 
       {/* Canais — somente visualização/seleção aqui; gestão fica em Configurações */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-4">
@@ -449,14 +476,15 @@ function DisparoProprioView() {
                 <th className="text-right px-5 py-3 font-medium">Enviados / Total</th>
                 <th className="text-right px-5 py-3 font-medium">Entregues</th>
                 <th className="text-right px-5 py-3 font-medium">Falhas</th>
+                <th className="px-5 py-3" />
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {isLoading && (
-                <tr><td colSpan={7} className="px-5 py-8 text-center text-gray-400 text-sm">Carregando…</td></tr>
+                <tr><td colSpan={8} className="px-5 py-8 text-center text-gray-400 text-sm">Carregando…</td></tr>
               )}
               {!isLoading && campanhas.length === 0 && (
-                <tr><td colSpan={7} className="px-5 py-8 text-center text-gray-400 text-sm">Nenhuma campanha criada ainda.</td></tr>
+                <tr><td colSpan={8} className="px-5 py-8 text-center text-gray-400 text-sm">Nenhuma campanha criada ainda.</td></tr>
               )}
               {!isLoading && campanhas.map((c) => {
                 const cfg = statusConfig[c.status] ?? statusConfig.rascunho;
@@ -473,6 +501,27 @@ function DisparoProprioView() {
                     <td className="px-5 py-3 text-right font-mono text-emerald-600">{c.entregues}</td>
                     <td className="px-5 py-3 text-right font-mono">
                       {c.falhas > 0 ? <span className="text-red-500 font-semibold">{c.falhas}</span> : <span className="text-gray-300">0</span>}
+                    </td>
+                    <td className="px-5 py-3 text-right">
+                      {c.status !== 'em_andamento' && (
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            if (!confirm(`Excluir a campanha "${c.nome}", a base de contatos e os leads/conversas dela no Chat?`)) return;
+                            try {
+                              await removerCampanhaDM(c.id);
+                              toast.success('Campanha excluída.');
+                              queryClient.invalidateQueries({ queryKey: ['dm-campanhas'] });
+                            } catch (err: any) {
+                              toast.error(err?.response?.data?.message || 'Erro ao excluir campanha.');
+                            }
+                          }}
+                          title="Excluir campanha"
+                          className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );

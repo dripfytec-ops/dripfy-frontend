@@ -64,6 +64,10 @@ export async function pausarCampanhaDM(campanhaId: string): Promise<void> {
   await api.patch(`/disparo-massa/campanhas/${campanhaId}`, { status: 'pausada' });
 }
 
+export async function removerCampanhaDM(campanhaId: string): Promise<void> {
+  await api.delete(`/disparo-massa/campanhas/${campanhaId}`);
+}
+
 // ─── Disparo Dripfy ────────────────────────────────────────────────────────
 
 export const useModelosDM = () => useQuery<ModeloMensagemDM[]>({

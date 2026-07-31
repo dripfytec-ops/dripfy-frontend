@@ -1,8 +1,10 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
-import { Plus, X, Sparkles, Wallet } from 'lucide-react';
-import { useCampanhasDripifyDM, useCampanhaDM } from '@/lib/dm-api';
+import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import { Plus, X, Sparkles, Wallet, Trash2 } from 'lucide-react';
+import { useCampanhasDripifyDM, useCampanhaDM, removerCampanhaDM } from '@/lib/dm-api';
 import { StatusCampanhaDM } from '@/types';
 
 function formatarDataHora(iso: string | null): string {
@@ -27,11 +29,23 @@ const PRIORIDADE_CLASS: Record<string, string> = {
   alta: 'bg-red-100 text-red-700',
 };
 
-function DemandaDetalheModal({ campanhaId, onClose }: { campanhaId: string; onClose: () => void }) {
+function DemandaDetalheModal({ campanhaId, onClose, onDeleted }: { campanhaId: string; onClose: () => void; onDeleted: () => void }) {
   const { data: campanha } = useCampanhaDM(campanhaId);
   if (!campanha) return null;
 
   const cfg = statusConfig[campanha.status] ?? statusConfig.rascunho;
+  const podeExcluir = campanha.status !== 'em_andamento' && campanha.financeiro_status !== 'pago';
+
+  async function excluir() {
+    if (!confirm('Excluir esta demanda, a base de contatos enviada e os leads/conversas dela no Chat? Essa ação não pode ser desfeita.')) return;
+    try {
+      await removerCampanhaDM(campanhaId);
+      toast.success('Demanda excluída.');
+      onDeleted();
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Erro ao excluir demanda.');
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
@@ -53,7 +67,14 @@ function DemandaDetalheModal({ campanhaId, onClose }: { campanhaId: string; onCl
               <span className="text-xs text-gray-400">Agendada: {formatarDataHora(campanha.agendado_para)}</span>
             </div>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+          <div className="flex items-center gap-2">
+            {podeExcluir && (
+              <button onClick={excluir} title="Excluir demanda" className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+          </div>
         </div>
 
         <div className="px-6 py-4">
@@ -93,10 +114,20 @@ function DemandaDetalheModal({ campanhaId, onClose }: { campanhaId: string; onCl
 export default function DisparoDripifyListaPage() {
   const { data: demandas = [], isLoading } = useCampanhasDripifyDM();
   const [detalheId, setDetalheId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   return (
     <div className="p-6">
-      {detalheId != null && <DemandaDetalheModal campanhaId={detalheId} onClose={() => setDetalheId(null)} />}
+      {detalheId != null && (
+        <DemandaDetalheModal
+          campanhaId={detalheId}
+          onClose={() => setDetalheId(null)}
+          onDeleted={() => {
+            setDetalheId(null);
+            queryClient.invalidateQueries({ queryKey: ['dm-dripify'] });
+          }}
+        />
+      )}
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
@@ -132,17 +163,19 @@ export default function DisparoDripifyListaPage() {
                 <th className="text-left px-5 py-3 font-medium">Status</th>
                 <th className="text-left px-5 py-3 font-medium">Financeiro</th>
                 <th className="text-right px-5 py-3 font-medium">Contatos</th>
+                <th className="px-5 py-3" />
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {isLoading && (
-                <tr><td colSpan={7} className="px-5 py-8 text-center text-gray-400 text-sm">Carregando…</td></tr>
+                <tr><td colSpan={8} className="px-5 py-8 text-center text-gray-400 text-sm">Carregando…</td></tr>
               )}
               {!isLoading && demandas.length === 0 && (
-                <tr><td colSpan={7} className="px-5 py-8 text-center text-gray-400 text-sm">Nenhuma demanda Dripfy criada ainda.</td></tr>
+                <tr><td colSpan={8} className="px-5 py-8 text-center text-gray-400 text-sm">Nenhuma demanda Dripfy criada ainda.</td></tr>
               )}
               {!isLoading && demandas.map((d) => {
                 const cfg = statusConfig[d.status] ?? statusConfig.rascunho;
+                const podeExcluir = d.status !== 'em_andamento' && d.financeiro_status !== 'pago';
                 return (
                   <tr key={d.id} onClick={() => setDetalheId(d.id)} className="hover:bg-gray-50 cursor-pointer transition-colors">
                     <td className="px-5 py-3 font-medium text-gray-800">{d.nome}</td>
@@ -162,6 +195,27 @@ export default function DisparoDripifyListaPage() {
                       </span>
                     </td>
                     <td className="px-5 py-3 text-right font-mono text-gray-700">{d.total_contatos}</td>
+                    <td className="px-5 py-3 text-right">
+                      {podeExcluir && (
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            if (!confirm(`Excluir a demanda "${d.nome}", a base de contatos e os leads/conversas dela no Chat?`)) return;
+                            try {
+                              await removerCampanhaDM(d.id);
+                              toast.success('Demanda excluída.');
+                              queryClient.invalidateQueries({ queryKey: ['dm-dripify'] });
+                            } catch (err: any) {
+                              toast.error(err?.response?.data?.message || 'Erro ao excluir demanda.');
+                            }
+                          }}
+                          title="Excluir demanda"
+                          className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 );
               })}

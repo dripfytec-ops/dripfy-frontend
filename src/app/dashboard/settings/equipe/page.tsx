@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   Plus, Pencil, Trash2, X, Save, KeyRound,
-  CheckCircle2, XCircle, UserCircle2, ShieldCheck, Eye, EyeOff,
+  CheckCircle2, XCircle, UserCircle2, ShieldCheck, Eye, EyeOff, Users,
 } from 'lucide-react';
 import api from '@/lib/api';
 import { auth } from '@/lib/auth';
@@ -237,6 +237,21 @@ export default function VendedoresPage() {
     queryFn: async () => (await api.get('/users')).data,
   });
 
+  const { data: config } = useQuery<{ vendedor_ve_todos_atendimentos: boolean }>({
+    queryKey: ['team-config'],
+    queryFn: async () => (await api.get('/users/config')).data,
+  });
+
+  const configMutation = useMutation({
+    mutationFn: (vendedor_ve_todos_atendimentos: boolean) =>
+      api.patch('/users/config', { vendedor_ve_todos_atendimentos }),
+    onSuccess: (_, valor) => {
+      toast.success(valor ? 'Vendedores agora veem todos os atendimentos.' : 'Vendedores voltaram a ver só os seus atendimentos.');
+      queryClient.invalidateQueries({ queryKey: ['team-config'] });
+    },
+    onError: () => toast.error('Erro ao atualizar configuração.'),
+  });
+
   const toggleMutation = useMutation({
     mutationFn: (id: string) => api.patch(`/users/${id}/toggle`),
     onSuccess: (_, id) => {
@@ -294,6 +309,34 @@ export default function VendedoresPage() {
             <p className="text-xs text-gray-400 mt-0.5">{s.label}</p>
           </div>
         ))}
+      </div>
+
+      <div className="card p-4 mb-6 flex items-center justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+            <Users size={16} className="text-blue-600" />
+          </div>
+          <div>
+            <p className="font-medium text-gray-900 text-sm">Vendedor vê atendimentos de outros vendedores</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Quando ligado, qualquer vendedor enxerga a esteira do Chat inteira. Quando desligado, cada vendedor só vê os
+              atendimentos atribuídos a ele + os que ainda não têm vendedor.
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={() => configMutation.mutate(!config?.vendedor_ve_todos_atendimentos)}
+          disabled={configMutation.isPending}
+          className={`relative flex-shrink-0 w-11 h-6 rounded-full transition-colors ${
+            config?.vendedor_ve_todos_atendimentos ? 'bg-primary' : 'bg-gray-300'
+          }`}
+        >
+          <span
+            className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+              config?.vendedor_ve_todos_atendimentos ? 'translate-x-5' : ''
+            }`}
+          />
+        </button>
       </div>
 
       {isLoading ? (
