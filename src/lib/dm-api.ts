@@ -18,14 +18,14 @@ export const useStatusCanaisDM = () => useQuery<StatusCanalDM[]>({
 });
 
 export async function createCanalDM(data: {
-  nome: string; waba_id: string; phone_number_id: string; access_token: string;
+  nome: string; telefone?: string; waba_id: string; phone_number_id: string; access_token: string;
   bm_nome?: string; lote_size?: number; delay_ms?: number;
 }): Promise<CanalDM> {
   return api.post('/disparo-massa/canais', data).then((r) => r.data);
 }
 
 export async function updateCanalDM(id: string, data: Partial<{
-  nome: string; waba_id: string; phone_number_id: string; access_token: string;
+  nome: string; telefone: string; waba_id: string; phone_number_id: string; access_token: string;
   bm_nome: string; lote_size: number; delay_ms: number; ativo: boolean;
 }>): Promise<CanalDM> {
   return api.patch(`/disparo-massa/canais/${id}`, data).then((r) => r.data);

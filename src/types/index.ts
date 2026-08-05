@@ -43,6 +43,7 @@ export type MidiaTipoDM = 'nenhuma' | 'imagem' | 'video';
 export interface CanalDM {
   id: string;
   nome: string;
+  telefone: string | null;
   waba_id: string;
   phone_number_id: string;
   bm_nome: string | null;
@@ -52,6 +53,7 @@ export interface CanalDM {
   chatwoot_inbox_id: number | null;
   ativo: boolean;
   criado_em: string;
+  token_preview: string;
 }
 
 export interface CampanhaDM {
@@ -123,10 +125,14 @@ export interface StatusCanalDM {
   nome: string;
   quality_rating: 'GREEN' | 'YELLOW' | 'RED' | string | null;
   throughput_level: string | null;
+  account_status: string | null;
+  display_phone_number: string | null;
   moeda: string | null;
   volume_30d: number;
   custo_30d: number;
   custo_medio: number;
+  custo_30d_brl: number | null;
+  cotacao_usd_brl: number | null;
   erro: string | null;
 }
 
