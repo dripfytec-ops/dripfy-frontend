@@ -37,6 +37,31 @@ const STATUS_CONFIG: Record<MessageStatus, { icon: React.ReactNode; color: strin
   erro:     { icon: <AlertCircle size={15} />, color: 'text-red-500' },
 };
 
+// Erros mais comuns que a Meta devolve no status de entrega (webhook), em
+// inglês — traduzidos pra algo que a equipe entenda sem precisar pesquisar.
+// O texto original continua acessível passando o mouse (title).
+const ERRO_META_TRADUZIDO: Record<string, string> = {
+  'Re-engagement message': 'Mais de 24h desde a última resposta do cliente — envie um Template pra reabrir a conversa.',
+  'Message failed to send because more than 24 hours have passed since the customer last replied to this number.':
+    'Mais de 24h desde a última resposta do cliente — envie um Template pra reabrir a conversa.',
+  'Message Undeliverable': 'Não foi possível entregar — o número pode não ter WhatsApp ou estar inacessível.',
+  'Unable to deliver message. Contact the WhatsApp Business Support Team for help.':
+    'Não foi possível entregar — o número pode não ter WhatsApp ou estar inacessível.',
+  'Invalid parameter': 'Parâmetro inválido no envio (verifique o template/telefone).',
+  'Unsupported message type': 'Tipo de mensagem não suportado pelo WhatsApp.',
+  'Rate limit hit': 'Limite de envios da Meta atingido — tente novamente em instantes.',
+  'Too Many Requests': 'Limite de envios da Meta atingido — tente novamente em instantes.',
+  'Template Name does not exist in the translation':
+    'O template não existe ou não está aprovado nesse idioma.',
+  'Account has been restricted': 'A conta do canal foi restringida pela Meta.',
+  'The WhatsApp Business Account has not been approved to send messages to the recipient.':
+    'A conta comercial não está aprovada pra mandar mensagem pra esse destinatário.',
+};
+
+function traduzirErro(erro: string): string {
+  return ERRO_META_TRADUZIDO[erro] || erro;
+}
+
 function MediaContent({ message }: { message: Message }) {
   if (!message.media_url) return null;
   const url = getMediaUrl(message.media_url);
@@ -131,7 +156,11 @@ function MessageBubble({ message, onDelete }: { message: Message; onDelete: (id:
           {(showTextContent || !message.media_url) && (
             <p className="text-sm whitespace-pre-wrap text-slate-900">{message.content || 'Template enviado'}</p>
           )}
-          {message.erro_msg && <p className="text-xs mt-1 text-red-600">{message.erro_msg}</p>}
+          {message.erro_msg && (
+            <p className="text-xs mt-1 text-red-600" title={message.erro_msg}>
+              {traduzirErro(message.erro_msg)}
+            </p>
+          )}
         </div>
         <div className="flex items-center justify-end gap-1.5 mt-1 px-1">
           <button
@@ -142,7 +171,9 @@ function MessageBubble({ message, onDelete }: { message: Message; onDelete: (id:
             <Trash2 size={12} />
           </button>
           <span className="text-xs text-slate-400">{timeStr}</span>
-          <span className={cfg.color}>{cfg.icon}</span>
+          <span className={cfg.color} title={message.status === 'erro' && message.erro_msg ? traduzirErro(message.erro_msg) : undefined}>
+            {cfg.icon}
+          </span>
         </div>
       </div>
     </div>

@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Papa from 'papaparse';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { X, Radio, Pause, Play, Plus, Settings2, Trash2 } from 'lucide-react';
+import { X, Radio, Pause, Play, Plus, Settings2, Trash2, Download } from 'lucide-react';
 import api from '@/lib/api';
 import {
   useCanaisDM, useCampanhasDM, useCampanhaDM, useStatusCanaisDM,
@@ -289,6 +289,20 @@ function CampanhaDetalheModal({ campanhaId, onClose, onDeleted }: { campanhaId: 
     } finally { setActing(false); }
   }
 
+  async function exportarFalhas() {
+    try {
+      const res = await api.get(`/disparo-massa/campanhas/${campanhaId}/exportar-falhas`, { responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `falhas_${(campanha?.nome || 'campanha').replace(/\s+/g, '_')}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Erro ao exportar falhas.');
+    }
+  }
+
   if (!campanha) return null;
 
   const cfg = statusConfig[campanha.status] ?? statusConfig.rascunho;
@@ -351,6 +365,15 @@ function CampanhaDetalheModal({ campanhaId, onClose, onDeleted }: { campanhaId: 
               <p className="text-[11px] text-gray-400 mt-0.5">Falhas</p>
             </div>
           </div>
+
+          {campanha.falhas > 0 && (
+            <button
+              onClick={exportarFalhas}
+              className="flex items-center gap-1.5 mb-4 px-3 py-1.5 border border-gray-200 hover:bg-gray-50 text-gray-600 text-xs font-medium rounded-lg transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" /> Exportar falhas (CSV) — pra um novo disparo
+            </button>
+          )}
 
           {(campanha.status === 'em_andamento') && (
             <div className="mb-4">
