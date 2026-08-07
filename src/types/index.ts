@@ -197,6 +197,7 @@ export interface Lead {
   unread_count: number;
   origem_campanha_id?: string | null;
   origem_campanha_nome?: string | null;
+  canal?: { id: string; nome: string } | null;
   criado_em: string;
 }
 

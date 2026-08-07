@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { PhoneIncoming, IdCard, Phone, CalendarDays, Tag, UserCircle2, Pencil, Check, X, ChevronRight, ChevronLeft, Megaphone } from 'lucide-react';
+import { PhoneIncoming, IdCard, Phone, CalendarDays, Tag, UserCircle2, Pencil, Check, X, ChevronRight, ChevronLeft, Megaphone, Radio } from 'lucide-react';
 import api from '@/lib/api';
 import { Lead, Etiqueta, Vendedor } from '@/types';
 import { getInitials, getAvatarColor } from '@/lib/avatar';
@@ -266,6 +266,9 @@ export default function ContactDetails({ lead, etiquetas, vendedores, isAdmin, o
             </div>
             <Field icon={UserCircle2} label="Vendedor" value={lead.vendedor?.nome || 'Sem vendedor'} />
           </>
+        )}
+        {lead.canal && (
+          <Field icon={Radio} label="Canal" value={lead.canal.nome} />
         )}
         {lead.origem_campanha_nome && (
           <Field icon={Megaphone} label="Veio da campanha" value={lead.origem_campanha_nome} />
