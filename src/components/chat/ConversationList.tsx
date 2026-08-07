@@ -1,7 +1,7 @@
 'use client';
 import { useMemo, useState } from 'react';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, Plus, Filter, User as UserIcon, X, Mic } from 'lucide-react';
+import { Search, Plus, Filter, User as UserIcon, X, Mic, Radio } from 'lucide-react';
 import api from '@/lib/api';
 import { useCampanhasDM } from '@/lib/dm-api';
 import { auth } from '@/lib/auth';
@@ -278,8 +278,13 @@ export default function ConversationList({ selectedLeadId, onSelect, etiquetas, 
                     <span className="w-2 h-2 rounded-full shrink-0" style={{ background: '#25D366' }} />
                   )}
                 </span>
-                {lead.etiquetas.length > 0 && (
+                {(lead.etiquetas.length > 0 || lead.canal) && (
                   <span className="flex flex-wrap items-center gap-1 mt-1">
+                    {lead.canal && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-500">
+                        <Radio size={9} /> {lead.canal.nome}
+                      </span>
+                    )}
                     {lead.etiquetas.map((et) => (
                       <span
                         key={et.id}

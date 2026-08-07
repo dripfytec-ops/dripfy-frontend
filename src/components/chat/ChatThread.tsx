@@ -445,6 +445,9 @@ export default function ChatThread({ lead, onUpdated }: Props) {
         <div className="flex-1 min-w-0">
           <p className="font-semibold truncate text-sm">{lead.nome}</p>
           <p className="text-xs text-gray-400 font-mono">{lead.telefone}</p>
+          {lead.canal && (
+            <p className="text-[11px] text-gray-400 truncate">Atendendo via: {lead.canal.nome}</p>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {lead.iniciado_pelo_cliente && (
