@@ -251,6 +251,11 @@ export default function ConversationList({ selectedLeadId, onSelect, etiquetas, 
                 {getInitials(lead.nome)}
               </span>
               <span className="min-w-0 flex-1">
+                {lead.canal && (
+                  <span className="flex items-center gap-1 text-[10px] font-medium text-gray-400 mb-0.5">
+                    <Radio size={9} className="shrink-0" /> <span className="truncate">{lead.canal.nome}</span>
+                  </span>
+                )}
                 <span className="flex items-start justify-between gap-2">
                   <span className="text-sm font-semibold text-gray-900 truncate">{lead.nome}</span>
                   <span className="flex flex-col items-end shrink-0">
@@ -278,13 +283,8 @@ export default function ConversationList({ selectedLeadId, onSelect, etiquetas, 
                     <span className="w-2 h-2 rounded-full shrink-0" style={{ background: '#25D366' }} />
                   )}
                 </span>
-                {(lead.etiquetas.length > 0 || lead.canal) && (
+                {lead.etiquetas.length > 0 && (
                   <span className="flex flex-wrap items-center gap-1 mt-1">
-                    {lead.canal && (
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-500">
-                        <Radio size={9} /> {lead.canal.nome}
-                      </span>
-                    )}
                     {lead.etiquetas.map((et) => (
                       <span
                         key={et.id}
