@@ -21,7 +21,7 @@ export default function NewConversationModal({ onClose, onCreated }: Props) {
   const [nome, setNome] = useState('');
   const [telefone, setTelefone] = useState('');
   const [cpf, setCpf] = useState('');
-  const [param1, setParam1] = useState('');
+  const [params, setParams] = useState<string[]>([]);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState('');
 
@@ -42,10 +42,18 @@ export default function NewConversationModal({ onClose, onCreated }: Props) {
 
   const templateAtual = templates.find((t) => t.name === templateName);
   const bodyTemplate = templateAtual?.components?.find((c) => c.type === 'BODY')?.text || '';
-  const precisaParam1 = bodyTemplate.includes('{{1}}');
+  // Detecta {{1}}, {{2}}, {{3}}... — templates podem ter quantas variáveis
+  // a Meta aprovar, não só uma.
+  const numerosVariaveis = Array.from(
+    new Set(Array.from(bodyTemplate.matchAll(/\{\{(\d+)\}\}/g), (m) => Number(m[1]))),
+  ).sort((a, b) => a - b);
 
   useEffect(() => {
-    if (precisaParam1 && !param1) setParam1(nome);
+    if (numerosVariaveis.length) {
+      setParams((prev) => numerosVariaveis.map((n, i) => prev[i] ?? (n === 1 ? nome : '')));
+    } else {
+      setParams([]);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [templateName]);
 
@@ -53,6 +61,10 @@ export default function NewConversationModal({ onClose, onCreated }: Props) {
     setErro('');
     if (!nome.trim() || !telefone.trim() || !canalId || !templateName) {
       setErro('Preencha nome, telefone, canal e template.');
+      return;
+    }
+    if (numerosVariaveis.length && params.some((p) => !p.trim())) {
+      setErro('Preencha todas as variáveis do template.');
       return;
     }
     setEnviando(true);
@@ -63,7 +75,7 @@ export default function NewConversationModal({ onClose, onCreated }: Props) {
         cpf: cpf.trim() || undefined,
         canal_id: canalId,
         template_name: templateName,
-        template_params: precisaParam1 ? [param1 || nome] : [],
+        template_params: numerosVariaveis.length ? params : [],
       });
       onCreated(data);
     } catch (e: any) {
@@ -130,13 +142,16 @@ export default function NewConversationModal({ onClose, onCreated }: Props) {
                 )}
               </div>
 
-              {precisaParam1 && (
-                <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Valor de {'{{1}}'}</label>
-                  <input value={param1} onChange={(e) => setParam1(e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-300" />
+              {numerosVariaveis.map((n, i) => (
+                <div key={n}>
+                  <label className="text-xs text-gray-500 mb-1 block">Valor de {`{{${n}}}`}</label>
+                  <input
+                    value={params[i] || ''}
+                    onChange={(e) => setParams((prev) => prev.map((p, idx) => (idx === i ? e.target.value : p)))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-300"
+                  />
                 </div>
-              )}
+              ))}
 
               {erro && <p className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{erro}</p>}
 

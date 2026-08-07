@@ -27,6 +27,7 @@ export async function createCanalDM(data: {
 export async function updateCanalDM(id: string, data: Partial<{
   nome: string; telefone: string; waba_id: string; phone_number_id: string; access_token: string;
   bm_nome: string; lote_size: number; delay_ms: number; ativo: boolean;
+  mensagem_boas_vindas: string; saudacao_ativa: boolean;
 }>): Promise<CanalDM> {
   return api.patch(`/disparo-massa/canais/${id}`, data).then((r) => r.data);
 }

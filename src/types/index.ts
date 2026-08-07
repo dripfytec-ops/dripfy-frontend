@@ -49,7 +49,8 @@ export interface CanalDM {
   bm_nome: string | null;
   lote_size: number | null;
   delay_ms: number | null;
-  template_boas_vindas: string | null;
+  mensagem_boas_vindas: string | null;
+  saudacao_ativa: boolean;
   chatwoot_inbox_id: number | null;
   ativo: boolean;
   criado_em: string;
