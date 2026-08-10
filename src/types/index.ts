@@ -39,6 +39,7 @@ export type TipoCampanhaDM = 'proprio' | 'dripfy';
 export type PrioridadeDM = 'baixa' | 'media' | 'alta';
 export type FinanceiroStatusDM = 'pendente' | 'pago';
 export type MidiaTipoDM = 'nenhuma' | 'imagem' | 'video';
+export type ExecucaoDripfyDM = 'jmd' | 'odysseia_whatsapp';
 
 export interface CanalDM {
   id: string;
@@ -85,7 +86,19 @@ export interface CampanhaDM {
   midia_url: string | null;
   aprovado_em: string | null;
   aprovado_por: string | null;
+  execucao: ExecucaoDripfyDM | null;
+  odysseia_job_id: string | null;
+  odysseia_status: string | null;
+  odysseia_template_id: string | null;
+  odysseia_receptive_fonte: string | null;
   tenant?: { id: string; nome_empresa: string; slug: string };
+}
+
+export interface OdysseiaTemplateWhatsapp {
+  id: string;
+  name: string;
+  message: string;
+  updatedAt: string;
 }
 
 export interface ModeloMensagemDM {
