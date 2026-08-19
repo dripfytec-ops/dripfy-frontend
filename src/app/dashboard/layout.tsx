@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -71,9 +72,28 @@ const ROLE_LABEL: Record<string, string> = {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const queryClient = useQueryClient();
   const [user, setUser] = useState<User | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   const [expandedHref, setExpandedHref] = useState<string | null>(null);
+
+  // Status online (usado na atribuição automática de leads) — o próprio
+  // usuário liga/desliga clicando no avatar dele no rodapé do menu.
+  const { data: me } = useQuery({
+    queryKey: ['me-online'],
+    queryFn: async () => (await api.get('/users/me')).data as { id: string; nome: string; online: boolean },
+    enabled: !!user,
+    staleTime: 30000,
+  });
+
+  const toggleOnlineMutation = useMutation({
+    mutationFn: () => api.patch('/users/me/online'),
+    onSuccess: ({ data }) => {
+      toast.success(data.online ? 'Você está online.' : 'Você está offline.');
+      queryClient.setQueryData(['me-online'], data);
+    },
+    onError: () => toast.error('Erro ao alterar status online.'),
+  });
 
   const isAdmin = user?.role === 'lojista_admin' || user?.role === 'admin_master';
   const isAtendente = user?.role === 'atendente';
@@ -235,13 +255,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         <div className="px-3 pb-4 pt-3 border-t border-white/10">
           <div className={`flex items-center gap-2.5 px-2 py-2 mb-2 ${collapsed ? 'justify-center' : ''}`}>
-            <div
-              className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0"
-              style={{ background: getAvatarColor(user.nome) }}
-              title={collapsed ? user.nome : undefined}
+            <button
+              onClick={() => toggleOnlineMutation.mutate()}
+              disabled={toggleOnlineMutation.isPending}
+              className="relative flex-shrink-0"
+              title={me?.online ? 'Você está online — clique para ficar offline' : 'Você está offline — clique para ficar online'}
             >
-              {getInitials(user.nome)}
-            </div>
+              <div
+                className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-semibold"
+                style={{ background: getAvatarColor(user.nome) }}
+              >
+                {getInitials(user.nome)}
+              </div>
+              <span
+                className={`absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#0f1b3d] ${
+                  me?.online ? 'bg-green-500' : 'bg-gray-400'
+                }`}
+              />
+            </button>
             {!collapsed && (
               <div className="flex-1 min-w-0">
                 <p className="text-white text-sm font-medium truncate">{user.nome}</p>

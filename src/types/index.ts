@@ -175,6 +175,7 @@ export interface TeamMember {
   email: string;
   role: UserRole;
   ativo: boolean;
+  online: boolean;
   criado_em: string;
 }
 

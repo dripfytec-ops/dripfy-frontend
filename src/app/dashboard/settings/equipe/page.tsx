@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   Plus, Pencil, Trash2, X, Save, KeyRound,
-  CheckCircle2, XCircle, UserCircle2, ShieldCheck, Eye, EyeOff, Users,
+  CheckCircle2, XCircle, UserCircle2, ShieldCheck, Eye, EyeOff, Users, Gauge,
 } from 'lucide-react';
 import api from '@/lib/api';
 import { auth } from '@/lib/auth';
@@ -237,10 +237,11 @@ export default function VendedoresPage() {
     queryFn: async () => (await api.get('/users')).data,
   });
 
-  const { data: config } = useQuery<{ vendedor_ve_todos_atendimentos: boolean }>({
+  const { data: config } = useQuery<{ vendedor_ve_todos_atendimentos: boolean; limite_leads_dia_vendedor: number }>({
     queryKey: ['team-config'],
     queryFn: async () => (await api.get('/users/config')).data,
   });
+  const [limiteLeadsInput, setLimiteLeadsInput] = useState('');
 
   const configMutation = useMutation({
     mutationFn: (vendedor_ve_todos_atendimentos: boolean) =>
@@ -250,6 +251,26 @@ export default function VendedoresPage() {
       queryClient.invalidateQueries({ queryKey: ['team-config'] });
     },
     onError: () => toast.error('Erro ao atualizar configuração.'),
+  });
+
+  const limiteMutation = useMutation({
+    mutationFn: (limite_leads_dia_vendedor: number) =>
+      api.patch('/users/config', { limite_leads_dia_vendedor }),
+    onSuccess: () => {
+      toast.success('Limite diário de leads atualizado!');
+      queryClient.invalidateQueries({ queryKey: ['team-config'] });
+    },
+    onError: () => toast.error('Erro ao atualizar limite diário.'),
+  });
+
+  const toggleOnlineMutation = useMutation({
+    mutationFn: (id: string) => api.patch(`/users/${id}/toggle-online`),
+    onSuccess: (_, id) => {
+      const m = members.find((x) => x.id === id);
+      toast.success(m?.online ? `${m.nome} agora está offline.` : `${m?.nome} agora está online.`);
+      queryClient.invalidateQueries({ queryKey: ['team'] });
+    },
+    onError: () => toast.error('Erro ao alterar status online.'),
   });
 
   const toggleMutation = useMutation({
@@ -339,6 +360,42 @@ export default function VendedoresPage() {
         </button>
       </div>
 
+      <div className="card p-4 mb-6 flex items-center justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+            <Gauge size={16} className="text-blue-600" />
+          </div>
+          <div>
+            <p className="font-medium text-gray-900 text-sm">Limite diário de leads por vendedor</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Quantidade máxima de leads de disparo externo que a atribuição automática distribui por dia pra cada vendedor
+              online. Quando todos batem o limite, o lead novo fica sem vendedor pra distribuição manual.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <input
+            type="number"
+            min={1}
+            value={limiteLeadsInput || config?.limite_leads_dia_vendedor || ''}
+            onChange={(e) => setLimiteLeadsInput(e.target.value)}
+            className="input w-20 text-center text-sm"
+            placeholder="250"
+          />
+          <button
+            onClick={() => {
+              const valor = Number(limiteLeadsInput);
+              if (!valor || valor < 1) return toast.error('Informe um número válido maior que zero.');
+              limiteMutation.mutate(valor);
+            }}
+            disabled={limiteMutation.isPending || !limiteLeadsInput}
+            className="btn-primary text-xs px-3 py-1.5 disabled:opacity-40"
+          >
+            Salvar
+          </button>
+        </div>
+      </div>
+
       {isLoading ? (
         <div className="flex justify-center p-12">
           <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
@@ -375,9 +432,21 @@ export default function VendedoresPage() {
                   <tr key={member.id} className={`hover:bg-gray-50 transition-colors ${!member.ativo ? 'opacity-60' : ''}`}>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                          <span className="text-primary text-xs font-bold">{member.nome.charAt(0).toUpperCase()}</span>
-                        </div>
+                        <button
+                          onClick={() => toggleOnlineMutation.mutate(member.id)}
+                          disabled={toggleOnlineMutation.isPending}
+                          className="relative flex-shrink-0"
+                          title={member.online ? `${member.nome} está online — clique para deixar offline` : `${member.nome} está offline — clique para deixar online`}
+                        >
+                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                            <span className="text-primary text-xs font-bold">{member.nome.charAt(0).toUpperCase()}</span>
+                          </div>
+                          <span
+                            className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ${
+                              member.online ? 'bg-green-500' : 'bg-gray-300'
+                            }`}
+                          />
+                        </button>
                         <div>
                           <p className="font-medium text-gray-900">{member.nome}</p>
                           {isMe && <p className="text-[10px] text-primary font-medium">Você</p>}
