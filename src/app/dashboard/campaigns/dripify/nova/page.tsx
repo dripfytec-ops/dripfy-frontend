@@ -22,6 +22,13 @@ interface ContatoCSV {
 
 const PASSOS = ['Identificação', 'Mensagem', 'Mídia', 'Contatos', 'Agendamento', 'Revisão'];
 
+const QUANTIDADE_MINIMA_CONTATOS = 2500;
+const PRECO_CREDITO = 0.25;
+
+function formatarMoeda(valor: number): string {
+  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
 const PRIORIDADE_LABEL: Record<PrioridadeDM, string> = { baixa: 'Baixa', media: 'Média', alta: 'Alta' };
 const PRIORIDADE_CLASS: Record<PrioridadeDM, string> = {
   baixa: 'bg-gray-100 text-gray-600',
@@ -178,7 +185,7 @@ export default function DisparoDripifyPage() {
     if (passo === 1) return nomeDemanda.trim() !== '';
     if (passo === 2) return mensagemTexto.trim() !== '' && (!salvarModelo || nomeModelo.trim() !== '');
     if (passo === 3) return midiaTipo === 'nenhuma' || midiaFile !== null;
-    if (passo === 4) return contatos.length > 0;
+    if (passo === 4) return contatos.length >= QUANTIDADE_MINIMA_CONTATOS;
     if (passo === 5) return agendamentoValido;
     return true;
   };
@@ -487,16 +494,32 @@ export default function DisparoDripifyPage() {
               </div>
             )}
 
-            {contatos.length > 0 && (
-              <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-gray-800">{totalContatos} contato{totalContatos === 1 ? '' : 's'} carregado{totalContatos === 1 ? '' : 's'}</p>
-                  <p className="text-xs text-gray-500">Custo estimado: <b>{totalContatos} crédito{totalContatos === 1 ? '' : 's'}</b> (1 crédito por contato)</p>
+            {contatos.length > 0 && contatos.length < QUANTIDADE_MINIMA_CONTATOS && (
+              <div className="bg-red-50 border border-red-100 rounded-lg p-3 flex items-center gap-2 text-xs text-red-700">
+                <AlertTriangle size={14} className="flex-shrink-0" />
+                Mínimo de {QUANTIDADE_MINIMA_CONTATOS} contatos por disparo — a planilha carregada tem só {totalContatos}.
+              </div>
+            )}
+
+            {contatos.length >= QUANTIDADE_MINIMA_CONTATOS && (
+              <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800">{totalContatos} contatos carregados</p>
+                    <p className="text-xs text-gray-500">
+                      Custo estimado: <b>{totalContatos} créditos</b> ({formatarMoeda(PRECO_CREDITO)}/contato) ={' '}
+                      <b>{formatarMoeda(totalContatos * PRECO_CREDITO)}</b>
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-gray-400">Seu saldo</p>
+                    <p className={`text-sm font-bold ${saldoSuficiente ? 'text-green-600' : 'text-red-500'}`}>{saldo} créditos</p>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-xs text-gray-400">Seu saldo</p>
-                  <p className={`text-sm font-bold ${saldoSuficiente ? 'text-green-600' : 'text-red-500'}`}>{saldo} créditos</p>
-                </div>
+                <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-2 mt-2.5">
+                  Contatos com erro no envio (número inválido, bloqueado, etc.) são ajustados no seu saldo automaticamente
+                  ao final do dia do disparo.
+                </p>
               </div>
             )}
           </div>

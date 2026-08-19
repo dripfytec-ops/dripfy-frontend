@@ -14,7 +14,7 @@ import {
 import api from '@/lib/api';
 import { auth } from '@/lib/auth';
 import { Tenant, CreditoTransacaoTipo, MensalidadeFaturaStatus } from '@/types';
-import { useExtratoCreditosTenant, useInvoicesPendentesTenant, useConfirmarPagamentoInvoice } from '@/lib/financeiro-api';
+import { useExtratoCreditosTenant, useInvoicesPendentesTenant, useConfirmarPagamentoInvoice, useAjustarCreditos } from '@/lib/financeiro-api';
 import { useMensalidadeTenant, useCampanhasTenant, useConfirmarPagamentoMensalidade, useConfirmarPagamentoAvulso, useAtualizarPlano } from '@/lib/assinatura-api';
 
 const schema = z.object({
@@ -149,6 +149,8 @@ export default function TenantsPage() {
   const { data: extrato, isLoading: extratoLoading } = useExtratoCreditosTenant(selectedId);
   const { data: invoicesPendentes = [] } = useInvoicesPendentesTenant(selectedId);
   const confirmarPagamentoInvoice = useConfirmarPagamentoInvoice(selectedId || '');
+  const ajustarCreditos = useAjustarCreditos(selectedId || '');
+  const [ajusteForm, setAjusteForm] = useState({ quantidade: '', descricao: '' });
   const { data: mensalidade, isLoading: mensalidadeLoading } = useMensalidadeTenant(selectedId);
   const { data: campanhas = [], isLoading: campanhasLoading } = useCampanhasTenant(selectedId);
   const confirmarPagamento = useConfirmarPagamentoMensalidade(selectedId || '');
@@ -706,6 +708,52 @@ export default function TenantsPage() {
                       <div>
                         <p className="text-xs text-gray-500">Saldo de créditos Dripfy</p>
                         <p className="text-lg font-bold text-gray-900">{extratoLoading ? '—' : `${extrato?.creditos_saldo ?? 0} créditos`}</p>
+                      </div>
+                    </div>
+
+                    <div className="border border-gray-100 rounded-lg p-3 mb-4">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <SlidersHorizontal size={12} /> Ajustar créditos manualmente
+                      </p>
+                      <p className="text-[11px] text-gray-400 mb-2">
+                        Use pra reembolsar contatos com falha no disparo Dripfy. Positivo credita, negativo debita.
+                      </p>
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          placeholder="Ex: 120 ou -50"
+                          value={ajusteForm.quantidade}
+                          onChange={(e) => setAjusteForm((p) => ({ ...p, quantidade: e.target.value }))}
+                          className="input text-xs w-28"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Motivo do ajuste"
+                          value={ajusteForm.descricao}
+                          onChange={(e) => setAjusteForm((p) => ({ ...p, descricao: e.target.value }))}
+                          className="input text-xs flex-1"
+                        />
+                        <button
+                          onClick={() => {
+                            const quantidade = Number(ajusteForm.quantidade);
+                            if (!quantidade) return toast.error('Informe uma quantidade diferente de zero.');
+                            if (!ajusteForm.descricao.trim()) return toast.error('Informe o motivo do ajuste.');
+                            ajustarCreditos.mutate(
+                              { quantidade, descricao: ajusteForm.descricao.trim() },
+                              {
+                                onSuccess: () => {
+                                  toast.success('Créditos ajustados!');
+                                  setAjusteForm({ quantidade: '', descricao: '' });
+                                },
+                                onError: () => toast.error('Erro ao ajustar créditos.'),
+                              },
+                            );
+                          }}
+                          disabled={ajustarCreditos.isPending}
+                          className="btn-primary text-xs px-3 whitespace-nowrap disabled:opacity-40"
+                        >
+                          Ajustar
+                        </button>
                       </div>
                     </div>
 

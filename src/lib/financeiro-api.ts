@@ -62,3 +62,14 @@ export const useExtratoCreditosTenant = (tenantId: string | null) =>
     queryFn: () => api.get(`/tenants/${tenantId}/extrato`).then((r) => r.data),
     enabled: !!tenantId,
   });
+
+// [Master] Ajuste manual de créditos de um tenant (ex: reembolso de contatos
+// com falha no disparo Dripfy). Quantidade positiva credita, negativa debita.
+export const useAjustarCreditos = (tenantId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (dto: { quantidade: number; descricao: string }) =>
+      api.patch(`/tenants/${tenantId}/creditos/ajustar`, dto).then((r) => r.data as { creditos_saldo: number }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['financeiro', 'extrato', tenantId] }),
+  });
+};

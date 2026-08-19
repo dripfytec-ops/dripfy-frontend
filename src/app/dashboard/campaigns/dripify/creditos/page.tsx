@@ -15,7 +15,7 @@ function formatarMoeda(valor: string | number): string {
   return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
-const QUANTIDADE_MINIMA_CREDITOS = 2000;
+const QUANTIDADE_MINIMA_CREDITOS = 2500;
 
 const TIPO_CONFIG: Record<CreditoTransacaoTipo, { label: string; icon: React.ElementType; className: string }> = {
   compra: { label: 'Compra', icon: ArrowUpCircle, className: 'text-green-600' },
@@ -54,8 +54,12 @@ function ModalComprarCreditos({ precoUnitario, onClose }: { precoUnitario: numbe
           className="input mb-3"
         />
         <p className="text-xs text-gray-400 -mt-2 mb-3">Mínimo de {QUANTIDADE_MINIMA_CREDITOS} créditos por compra.</p>
-        <p className="text-sm text-gray-700 mb-4">
+        <p className="text-sm text-gray-700 mb-2">
           Total: <span className="font-bold">{formatarMoeda(Number(quantidade || 0) * precoUnitario)}</span>
+        </p>
+        <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-2 mb-4">
+          Contatos com erro no envio (número inválido, bloqueado, etc.) são ajustados no seu saldo automaticamente
+          ao final do dia do disparo.
         </p>
         <div className="flex gap-2">
           <button onClick={onClose} className="btn-outline flex-1 text-sm">Cancelar</button>
